@@ -1,0 +1,40 @@
+{% set name = "titanos-core" %}
+{% set version = "0.1.0" %}
+
+package:
+  name: {{ name|lower }}
+  version: {{ version }}
+
+source:
+  path: ../..
+
+build:
+  noarch: python
+  number: 0
+  script: {{ PYTHON }} -m pip install . -vv
+
+requirements:
+  host:
+    - python >=3.11
+    - pip
+    - setuptools >=68
+  run:
+    - python >=3.11
+    - fastapi >=0.110
+    - pydantic-settings >=2.0
+    - python-dotenv >=1.0
+    - uvicorn >=0.27
+    - httpx >=0.27
+    - prometheus-fastapi-instrumentator >=6.1.0
+
+test:
+  imports:
+    - titanos
+  commands:
+    - titanos --help
+
+about:
+  home: https://github.com/your-org/TITANOS
+  license: MIT
+  license_file: LICENSE
+  summary: 'TITANOS brain and body-system contracts'

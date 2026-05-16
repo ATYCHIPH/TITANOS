@@ -1,0 +1,49 @@
+name: Publish and Release
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+
+jobs:
+  build-and-publish:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install build twine
+
+      - name: Build wheel (Manylinux)
+        run: |
+          docker build -t titanos-wheel-builder -f packaging/Dockerfile.manylinux .
+          docker run --rm -v ${{ github.workspace }}:/app titanos-wheel-builder python -m build --wheel
+          
+      - name: Build sdist
+        run: python -m build --sdist
+
+      - name: Auto-tag on main merge
+        if: github.ref == 'refs/heads/main'
+        id: auto_tag
+        uses: mathieudutour/github-tag-action@v6.1
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          default_bump: patch
+
+      - name: Publish to PyPI
+        if: startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main'
+        env:
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
+        run: |
+          twine upload dist/*

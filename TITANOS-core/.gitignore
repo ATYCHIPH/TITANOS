@@ -1,0 +1,35 @@
+# TITANOS Git Ignore
+
+# Logs
+.titanos/logs/
+server.out.log
+server.err.log
+BUILD_LOG.md
+
+# Sessions & Data
+.titanos/sessions/
+.titanos/*.sqlite
+.titanos/history/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.coverage
+htmlcov/
+dist/
+build/
+*.egg-info/
+.venv/
+venv/
+
+# UI & Node
+node_modules/
+cypress/videos/
+cypress/screenshots/
+.DS_Store
+
+# Dev Certs
+cert/*.pem

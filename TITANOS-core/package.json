@@ -1,0 +1,11 @@
+{
+  "name": "titanos-ui",
+  "version": "1.0.0",
+  "description": "UI tests for TITANOS",
+  "scripts": {
+    "test": "cypress run"
+  },
+  "devDependencies": {
+    "cypress": "^13.6.0"
+  }
+}

@@ -1,0 +1,44 @@
+name: Release Automation
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Auto-tag and Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+          
+          # Simple auto-tag logic (in a real setup, you'd use standard-version or similar)
+          LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+          IFS='.' read -r major minor patch <<< "${LATEST_TAG//v/}"
+          NEW_PATCH=$((patch + 1))
+          NEW_TAG="v${major}.${minor}.${NEW_PATCH}"
+          
+          echo "Bumping to $NEW_TAG"
+          export NEW_VERSION=$NEW_TAG
+          
+          # Generate release notes
+          python scripts/release_notes.py
+          
+          git add CHANGELOG.md
+          git commit -m "chore: bump version and update changelog [skip ci]" || echo "No changes to commit"
+          git tag $NEW_TAG
+          git push origin main
+          git push origin $NEW_TAG

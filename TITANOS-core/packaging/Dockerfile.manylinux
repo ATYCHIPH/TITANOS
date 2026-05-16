@@ -1,0 +1,17 @@
+FROM quay.io/pypa/manylinux2014_x86_64
+
+# Install build dependencies
+RUN yum install -y wget zip git
+
+# Install Python 3.11 from source or use the one provided by manylinux
+# manylinux2014_x86_64 has cp311 in /opt/python/cp311-cp311
+ENV PATH="/opt/python/cp311-cp311/bin:$PATH"
+
+# Upgrade pip and install build tools
+RUN pip install --upgrade pip setuptools wheel build
+
+WORKDIR /app
+COPY . /app/
+
+# Entry point script could run wheel_build.py
+CMD ["python", "packaging/wheel_build.py"]

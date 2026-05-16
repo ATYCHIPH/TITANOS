@@ -1,0 +1,135 @@
+import re
+from dataclasses import dataclass
+from typing import Tuple
+
+@dataclass
+class CFG:
+    # ----------------------
+    # LLM Model config
+    # ----------------------
+    GGUF_REPO_ID: str = "mradermacher/Qwen3-VL-8B-Instruct-abliterated-v2.0-GGUF"
+    GGUF_MODEL_FILENAME: str = "Qwen3-VL-8B-Instruct-abliterated-v2.0.Q5_K_S.gguf"
+    GGUF_MMPROJ_FILENAME: str = "Qwen3-VL-8B-Instruct-abliterated-v2.0.mmproj-f16.gguf"
+
+    # ----------------------
+    # Planning LLM (API-based)
+    # ----------------------
+    PLANNER_PROVIDER: str = "openrouter"       # openrouter | openai | local
+    PLANNER_API_KEY: str = ""                  # set via UI or env var
+    PLANNER_MODEL: str = ""
+    PLANNER_MAX_TOKENS: int = 1024
+
+    # ----------------------
+    # Hierarchical Planning Mode
+    # ----------------------
+    USE_PLANNER: bool = True                  # Enable Plan→Execute→Verify loop
+
+    # Local GGUF planner (text-only model)
+    PLANNER_GGUF_REPO_ID: str = ""             # HF repo for planner GGUF
+    PLANNER_GGUF_MODEL_FILENAME: str = ""      # GGUF filename
+    PLANNER_GGUF_LOCAL_PATH: str = ""          # Direct path to local .gguf file
+    PLANNER_N_CTX: int = 4096                  # Planner context window
+    PLANNER_N_THREADS: int = 8                 # Planner CPU threads
+    PLANNER_N_GPU_LAYERS: int = -1             # -1 = auto (detect optimal), 0=CPU only
+    PLANNER_MAX_REPLAN: int = 2                # Max replan attempts per objective
+
+    # Llama runtime
+    N_CTX: int = 2048
+    N_THREADS: int = 12
+    N_GPU_LAYERS: int = -1
+    N_BATCH: int = 32
+
+    FORCE_REASONING: bool = False
+
+    # Repeat guard
+    STOP_ON_REPEAT: bool = True
+
+    # Tolerance for detecting repeated clicks on the same point
+    REPEAT_XY_EPS: float = 0.01     # normalized 0..1
+
+    # Open VM screen as a separate window
+    OPEN_VNC_VIEWER: bool = True
+    IMAGE_MIN_TOKENS: int = 1024
+
+    # ----------------------
+    # Sandbox Docker config
+    # ----------------------
+    SANDBOX_IMAGE: str = "docker.io/trycua/cua-xfce:latest"
+    SANDBOX_NAME: str = "cua_xfce_agent"
+
+    # (Host side) VNC & API ports. 
+    # container 5901: VNC
+    # container 6901: noVNC (mapped externally)
+    # container 8000: Computer Server API
+    VNC_PORT: int = 5901
+    NOVNC_PORT: int = 6901
+    API_PORT: int = 8001
+
+    # Docker run settings
+    DOCKER_SHM_SIZE: str = "512m"
+    VNC_RESOLUTION: str = "1920x1080"
+    VNC_COL_DEPTH: int = 24
+
+    # If True: launch VNC viewer automatically
+    OPEN_VNC_VIEWER: bool = True
+
+    # ----------------------
+    # Agent loop timing
+    # ----------------------
+    WAIT_BEFORE_SCREENSHOT_SEC: float = 2.2
+    PAUSE_AFTER_CLICK_SEC: float = 0.25
+
+    SCREENSHOT_PATH: str = "./img/screen.png"
+    MAX_DIM: int = 640
+
+    PREVIEW_PATH_TEMPLATE: str = "./img/click_preview_step_{i}.png"
+
+    MIN_MARGIN: float = 0.02
+    CONFIDENCE_MIN: float = 0.15
+
+    WAIT_CHANGE_TIMEOUT: float = 3.0
+    WAIT_CHANGE_INTERVAL: float = 0.25
+    CHANGE_THRESHOLD: float = 0.02
+
+    MAX_STEPS: int = 20
+    MODEL_RETRY: int = 2
+    API_READY_TIMEOUT: int = 120  # seconds
+
+    # Sandbox screen size cache (seconds)
+    SCREEN_CACHE_TTL: float = 0.5
+
+    # Anti-loop
+    REPEAT_CLICK_DISTANCE_PX: int = 10
+
+    ALLOWED_PRESS_KEYS: Tuple[str, ...] = (
+        "enter", "tab", "esc", "backspace", "delete",
+        "up", "down", "left", "right",
+        "home", "end", "pageup", "pagedown",
+        "space"
+    )
+
+    ALLOWED_HOTKEYS: Tuple[Tuple[str, ...], ...] = (
+        ("ctrl", "l"),
+        ("ctrl", "t"),
+        ("ctrl", "w"),
+        ("alt", "tab"),
+    )
+
+
+# Instantiate config
+cfg = CFG()
+
+# ----------------------
+# Regex / MIME tables
+# ----------------------
+
+# vision.image_to_data_uri needs this
+IMAGE_MIME = {
+    ".png": "image/png",
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".webp": "image/webp",
+}
+
+# Used in llm_client to parse JSON from model text
+JSON_RE = re.compile(r"\{.*\}", re.S)
