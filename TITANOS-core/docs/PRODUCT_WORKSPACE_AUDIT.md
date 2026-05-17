@@ -33,6 +33,14 @@ This audit tracks the production UI lane for the 100-task Antigravity checklist.
 
 - `node --check ui/main.js`
 - `node --check ui/workspace-services.js`
+- `node --check desktop/main.cjs`
+- `node --check desktop/preload.cjs`
+- `node --check ui/api.js`
+- `python -m titanos doctor`
+- `npm.cmd run dist:dir`
+- Bundled backend executable staged at `desktop-runtime/backend/titanos-backend.exe`
+- Packaged desktop app launched from `release/win-unpacked/TITANOS.exe`
+- Packaged app started the bundled backend internally and returned `HTTP 200` from `http://127.0.0.1:18789/status`
 - Browser smoke test on `http://localhost:8017/ui/index.html`:
   - login routes to onboarding
   - onboarding routes to Universal Workspace
@@ -45,6 +53,7 @@ This audit tracks the production UI lane for the 100-task Antigravity checklist.
 ## Blocked Verification
 
 - Cypress binary verification is blocked by the local Windows Cypress binary cache failing to complete installation within the available command window. The npm package exists in `node_modules`, but `C:\Users\WDAGUtilityAccount\AppData\Local\Cypress\Cache\13.17.0\Cypress\resources\app\package.json` was not created before timeout.
+- NSIS installer generation did not complete before command timeout. The unpacked desktop application was built and verified.
 
 ## Antigravity Follow-Up Checks
 

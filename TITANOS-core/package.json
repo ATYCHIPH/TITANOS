@@ -1,11 +1,55 @@
 {
-  "name": "titanos-ui",
+  "name": "titanos",
   "version": "1.0.0",
-  "description": "UI tests for TITANOS",
+  "description": "TITANOS universal AI agent desktop workspace",
+  "main": "desktop/main.cjs",
+  "author": "TITANOS Team",
+  "private": true,
   "scripts": {
+    "desktop": "electron .",
+    "desktop:no-backend": "set TITANOS_DESKTOP_NO_BACKEND=1&& electron .",
+    "backend:bundle": "pyinstaller packaging/pyinstaller/titanos-backend.spec --noconfirm",
+    "desktop:stage-backend": "node packaging/scripts/stage-backend.cjs",
+    "dist:win": "npm run backend:bundle && npm run desktop:stage-backend && electron-builder --win nsis",
+    "dist:dir": "npm run backend:bundle && npm run desktop:stage-backend && electron-builder --dir",
     "test": "cypress run"
   },
   "devDependencies": {
-    "cypress": "^13.6.0"
+    "cypress": "^13.6.0",
+    "electron": "^31.7.7",
+    "electron-builder": "^24.13.3"
+  },
+  "build": {
+    "appId": "com.titanos.workspace",
+    "productName": "TITANOS",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "desktop/**/*",
+      "ui/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "desktop-runtime/backend",
+        "to": "backend",
+        "filter": [
+          "**/*"
+        ]
+      }
+    ],
+    "win": {
+      "target": [
+        "nsis"
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "TITANOS"
+    }
   }
 }

@@ -1,62 +1,72 @@
 import os
 from pathlib import Path
-from typing import Optional
-from pydantic_settings import BaseSettings, SettingsConfigDict
 
-class Settings(BaseSettings):
+
+def _bool_env(name: str, default: bool) -> bool:
+    value = os.getenv(name)
+    if value is None:
+        return default
+    return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _int_env(name: str, default: int) -> int:
+    value = os.getenv(name)
+    if value is None:
+        return default
+    try:
+        return int(value)
+    except ValueError:
+        return default
+
+
+class Settings:
     """
     TITANOS configuration settings.
-    """
-    model_config = SettingsConfigDict(
-        env_file=".env",
-        env_file_encoding="utf-8",
-        extra="ignore"
-    )
 
-    # Project Info
-    PROJECT_NAME: str = "TITANOS"
-    VERSION: str = "0.1.0"
-    
-    # Paths
-    BASE_DIR: Path = Path(__file__).parent.parent.parent
-    DATA_DIR: Path = BASE_DIR / ".titanos"
-    MEMORY_PATH: Path = DATA_DIR / "memory"
-    LOG_PATH: Path = DATA_DIR / "logs"
-    
-    # AI Providers
-    OPENAI_API_KEY: Optional[str] = None
-    ANTHROPIC_API_KEY: Optional[str] = None
-    GOOGLE_API_KEY: Optional[str] = None
-    NVIDIA_API_KEY: Optional[str] = None
-    OLLAMA_BASE_URL: str = "http://localhost:11434"
-    OLLAMA_API_KEY: Optional[str] = None
-    TITANOS_MODEL: str = "ollama:llama3"
-    
-    # Runtime Options
-    SANDBOX_MODE: bool = True
-    QUIET_HOURS_ENABLED: bool = False
-    LOG_LEVEL: str = "INFO"
-    COMMAND_TIMEOUT_SECONDS: int = 30
-    COMMAND_ALLOWLIST: str = ""
-    COMMAND_DENYLIST: str = "rm,del,erase,rmdir,remove-item,format,shutdown,restart-computer,stop-computer,git reset,git clean"
-    AUTO_MEMORY_ENABLED: bool = True
-    MEMORY_MIN_CHARS: int = 12
-    MEMORY_MAX_CHARS: int = 500
-    SESSION_HISTORY_ENABLED: bool = True
-    
-    # Server Options
-    HOST: str = "127.0.0.1"
-    PORT: int = 8000
-    CORS_ALLOW_ORIGINS: str = "*"
-    JWT_SECRET: str = "super-secret-dev-key"
-    ENVIRONMENT: str = "development"
-    
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        # Ensure directories exist
+    This class intentionally avoids pydantic BaseSettings in the runtime path so
+    the backend can be frozen into a standalone desktop executable.
+    """
+
+    def __init__(self) -> None:
+        self.PROJECT_NAME = os.getenv("TITANOS_PROJECT_NAME", "TITANOS")
+        self.VERSION = os.getenv("TITANOS_VERSION", "0.1.0")
+
+        self.BASE_DIR = Path(__file__).parent.parent.parent
+        self.DATA_DIR = Path(os.getenv("TITANOS_DATA_DIR", str(self.BASE_DIR / ".titanos")))
+        self.MEMORY_PATH = self.DATA_DIR / "memory"
+        self.LOG_PATH = self.DATA_DIR / "logs"
+
+        self.OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+        self.ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
+        self.GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
+        self.NVIDIA_API_KEY = os.getenv("NVIDIA_API_KEY")
+        self.OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
+        self.OLLAMA_API_KEY = os.getenv("OLLAMA_API_KEY")
+        self.TITANOS_MODEL = os.getenv("TITANOS_MODEL", "ollama:llama3")
+
+        self.SANDBOX_MODE = _bool_env("TITANOS_SANDBOX_MODE", True)
+        self.QUIET_HOURS_ENABLED = _bool_env("TITANOS_QUIET_HOURS_ENABLED", False)
+        self.LOG_LEVEL = os.getenv("TITANOS_LOG_LEVEL", "INFO")
+        self.COMMAND_TIMEOUT_SECONDS = _int_env("TITANOS_COMMAND_TIMEOUT_SECONDS", 30)
+        self.COMMAND_ALLOWLIST = os.getenv("TITANOS_COMMAND_ALLOWLIST", "")
+        self.COMMAND_DENYLIST = os.getenv(
+            "TITANOS_COMMAND_DENYLIST",
+            "rm,del,erase,rmdir,remove-item,format,shutdown,restart-computer,stop-computer,git reset,git clean",
+        )
+        self.AUTO_MEMORY_ENABLED = _bool_env("TITANOS_AUTO_MEMORY_ENABLED", True)
+        self.MEMORY_MIN_CHARS = _int_env("TITANOS_MEMORY_MIN_CHARS", 12)
+        self.MEMORY_MAX_CHARS = _int_env("TITANOS_MEMORY_MAX_CHARS", 500)
+        self.SESSION_HISTORY_ENABLED = _bool_env("TITANOS_SESSION_HISTORY_ENABLED", True)
+
+        self.HOST = os.getenv("TITANOS_HOST", "127.0.0.1")
+        self.PORT = _int_env("TITANOS_PORT", 8000)
+        self.CORS_ALLOW_ORIGINS = os.getenv("TITANOS_CORS_ALLOW_ORIGINS", "*")
+        self.JWT_SECRET = os.getenv("TITANOS_JWT_SECRET", "super-secret-dev-key")
+        self.ENVIRONMENT = os.getenv("TITANOS_ENVIRONMENT", "development")
+
         self.DATA_DIR.mkdir(parents=True, exist_ok=True)
         self.MEMORY_PATH.mkdir(parents=True, exist_ok=True)
         self.LOG_PATH.mkdir(parents=True, exist_ok=True)
 
-# Global settings instance
+
 settings = Settings()
