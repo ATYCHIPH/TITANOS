@@ -316,16 +316,16 @@ const DataWorkspace = ({ currentTask, progress, status }) => (
 );
 
 const WorkflowWorkspace = ({ currentTask, progress, status }) => (
-  <section style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 260px', gap: 14 }}>
-    <div className="glass-tile" style={{ padding: 18 }}>
+  <section style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 260px', gap: 14, minWidth: 0 }}>
+    <div className="glass-tile" style={{ padding: 18, minWidth: 0, overflow: 'hidden' }}>
       <SectionTitle icon={Workflow} label="Builder" title="Trigger to provider handoff graph" />
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(120px, 1fr))', gap: 18, marginTop: 16 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 12, marginTop: 16, maxWidth: 520 }}>
         {[
           { name: 'Cron Trigger', role: 'schedule', color: 'var(--accent-violet)' },
           { name: 'Context Load', role: 'memory', color: 'var(--success)' },
           { name: 'Routing Agent', role: 'model pick', color: 'var(--accent-cyan)' },
           { name: 'Fallback Alert', role: 'notify', color: 'var(--warning)' },
-        ].map((node) => <WorkflowNode key={node.name} node={node} />)}
+        ].map((node) => <WorkflowNode key={node.name} node={node} connector={false} />)}
       </div>
     </div>
     <TaskCard currentTask={currentTask} progress={progress} status={status} />
@@ -352,8 +352,8 @@ const SectionTitle = ({ icon: Icon, label, title }) => (
   </div>
 );
 
-const WorkflowNode = ({ node }) => (
-  <div className="workflow-node" style={{ borderColor: `${node.color}66` }}>
+const WorkflowNode = ({ node, connector = true }) => (
+  <div className={`workflow-node${connector ? '' : ' workflow-node-plain'}`} style={{ borderColor: `${node.color}66` }}>
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
       <div style={{ width: 34, height: 34, borderRadius: 8, display: 'grid', placeItems: 'center', background: `${node.color}22`, color: node.color }}>
         {node.name === 'Cortex' ? <Brain size={18} /> : node.name === 'Hands' ? <ShieldCheck size={18} /> : <Route size={18} />}

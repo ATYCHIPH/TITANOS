@@ -192,6 +192,10 @@ body {
   background: linear-gradient(90deg, var(--accent-cyan), transparent);
 }
 
+.workflow-node-plain::after {
+  display: none;
+}
+
 .neon-button {
   border: 1px solid rgba(79,140,255,0.45);
   background: linear-gradient(135deg, rgba(79,140,255,0.95), rgba(124,92,255,0.95));
