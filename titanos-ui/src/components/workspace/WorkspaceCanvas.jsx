@@ -277,12 +277,12 @@ await titanos.chat({
 );
 
 const BusinessWorkspace = ({ currentTask, progress, status }) => (
-  <section style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 260px', gap: 14 }}>
-    <div className="glass-tile" style={{ padding: 18, display: 'grid', gap: 14 }}>
+  <section style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 260px', gap: 14, minWidth: 0 }}>
+    <div className="glass-tile" style={{ padding: 18, display: 'grid', gap: 14, minWidth: 0, overflow: 'hidden' }}>
       <SectionTitle icon={BarChart3} label="Continuity" title="Operations health and failover" />
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 10, maxWidth: 520 }}>
         {['Provider SLA', 'Approval Load', 'Run Success'].map((label, index) => (
-          <div className="metric-card" key={label}>
+          <div className="metric-card" key={label} style={{ minWidth: 0 }}>
             <span className="eyebrow">{label}</span>
             <strong>{['99%', '2', '96%'][index]}</strong>
           </div>
