@@ -1,74 +1,79 @@
-import React from 'react';
-import { Terminal, ChevronUp, ChevronDown, Activity, Trash2, Download } from 'lucide-react';
+import { Activity, ChevronDown, ChevronUp, Download, Trash2 } from 'lucide-react';
+
+const logs = [
+  ['21:04:40', 'INFO', 'Brain session initialized'],
+  ['21:04:49', 'OK', 'Provider presets loaded'],
+  ['21:13:10', 'OK', 'Voice routed conversation'],
+  ['21:13:24', 'OK', 'API key vault redaction verified'],
+  ['21:14:02', 'INFO', 'Workspace inspector ready']
+];
 
 const ActivityPanel = ({ isExpanded, onToggle }) => {
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      {/* Panel Header */}
-      <div 
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: 'rgba(5,8,12,0.72)' }}>
+      <div
         onClick={onToggle}
-        style={{ 
-          height: '40px', 
-          padding: '0 var(--space-lg)', 
-          display: 'flex', 
-          alignItems: 'center', 
+        style={{
+          height: 40,
+          padding: '0 18px',
+          display: 'flex',
+          alignItems: 'center',
           justifyContent: 'space-between',
           cursor: 'pointer',
           userSelect: 'none'
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-md)' }}>
-          <Activity size={16} color="var(--text-tertiary)" />
-          <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-            System Activity & Logs
-          </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <Activity size={16} color="var(--accent-cyan)" />
+          <span className="eyebrow">System Activity</span>
+          <span className="status-pill"><span className="status-dot" /> Connected</span>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-md)' }}>
-          <div style={{ fontSize: '0.75rem', color: 'var(--success)', display: 'flex', alignItems: 'center', gap: '4px' }}>
-            <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'var(--success)' }} />
-            Connected
-          </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span style={{ color: 'var(--text-tertiary)', fontSize: '0.75rem' }}>5 events</span>
           {isExpanded ? <ChevronDown size={18} /> : <ChevronUp size={18} />}
         </div>
       </div>
 
-      {/* Expanded Content */}
       {isExpanded && (
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: '#050505', overflow: 'hidden' }}>
-          <div style={{ 
-            height: '36px', 
-            background: 'var(--bg-tertiary)', 
-            borderBottom: '1px solid var(--border-subtle)',
-            display: 'flex',
-            alignItems: 'center',
-            padding: '0 var(--space-md)',
-            gap: 'var(--space-md)'
-          }}>
-            <div style={{ fontSize: '0.75rem', color: 'var(--text-primary)', fontWeight: 600 }}>Console</div>
-            <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)' }}>Network</div>
-            <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)' }}>Environment</div>
-            <div style={{ flex: 1 }} />
-            <button className="btn btn-ghost" style={{ padding: '2px' }}><Download size={14} /></button>
-            <button className="btn btn-ghost" style={{ padding: '2px' }}><Trash2 size={14} /></button>
+        <div style={{ flex: 1, display: 'grid', gridTemplateColumns: '1fr 260px', gap: 12, padding: 12, minHeight: 0, overflow: 'hidden' }}>
+          <div className="glass-tile" style={{ overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+            <div style={{ height: 34, display: 'flex', alignItems: 'center', gap: 12, padding: '0 12px', borderBottom: '1px solid var(--border-subtle)' }}>
+              <span className="eyebrow">Console</span>
+              <span style={{ color: 'var(--text-tertiary)', fontSize: '0.75rem' }}>Network</span>
+              <span style={{ color: 'var(--text-tertiary)', fontSize: '0.75rem' }}>Runtime</span>
+              <div style={{ flex: 1 }} />
+              <button className="btn btn-ghost" style={{ padding: 4 }} title="Download logs"><Download size={14} /></button>
+              <button className="btn btn-ghost" style={{ padding: 4 }} title="Clear logs"><Trash2 size={14} /></button>
+            </div>
+            <div style={{ flex: 1, padding: 12, overflowY: 'auto', fontFamily: 'Consolas, monospace', fontSize: '0.78rem' }}>
+              {logs.map(([time, level, message]) => (
+                <div key={`${time}-${message}`} style={{ display: 'grid', gridTemplateColumns: '72px 54px 1fr', gap: 8, marginBottom: 6 }}>
+                  <span style={{ color: 'var(--text-tertiary)' }}>[{time}]</span>
+                  <span style={{ color: level === 'OK' ? 'var(--success)' : 'var(--accent-cyan)' }}>{level}</span>
+                  <span style={{ color: 'var(--text-secondary)' }}>{message}</span>
+                </div>
+              ))}
+            </div>
           </div>
-          
-          <div style={{ 
-            flex: 1, 
-            padding: 'var(--space-md)', 
-            fontFamily: 'monospace', 
-            fontSize: '0.8rem', 
-            color: '#888',
-            overflowY: 'auto'
-          }}>
-            <div style={{ marginBottom: '4px' }}><span style={{ color: '#555' }}>[23:40:01]</span> <span style={{ color: 'var(--accent-primary)' }}>INFO</span>: Initializing agent runtime...</div>
-            <div style={{ marginBottom: '4px' }}><span style={{ color: '#555' }}>[23:40:02]</span> <span style={{ color: 'var(--accent-primary)' }}>INFO</span>: Connecting to TITANOS-core gateway...</div>
-            <div style={{ marginBottom: '4px' }}><span style={{ color: '#555' }}>[23:40:03]</span> <span style={{ color: 'var(--success)' }}>SUCCESS</span>: Secure connection established.</div>
-            <div style={{ marginBottom: '4px' }}><span style={{ color: '#555' }}>[23:40:05]</span> <span style={{ color: 'var(--warning)' }}>WARN</span>: Provider 'OpenAI' key not found. Using mock mode.</div>
-            <div style={{ marginBottom: '4px' }}><span style={{ color: '#555' }}>[23:40:10]</span> <span style={{ color: 'var(--accent-primary)' }}>INFO</span>: Ready for commands.</div>
-            <div style={{ color: '#ddd' }}>$ titanos-agent --status</div>
-            <div style={{ color: '#aaa' }}>Agent ID: titanos-alpha-01</div>
-            <div style={{ color: '#aaa' }}>Uptime: 00:00:15</div>
-            <div style={{ color: '#aaa' }}>Memory: 124MB / 1024MB</div>
+
+          <div className="glass-tile" style={{ padding: 12 }}>
+            <div className="eyebrow" style={{ marginBottom: 10 }}>Health</div>
+            {[
+              ['UI Bridge', 100],
+              ['Backend', 100],
+              ['Sessions', 92],
+              ['Provider Keys', 78],
+            ].map(([label, value]) => (
+              <div key={label} style={{ marginBottom: 12 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: 5 }}>
+                  <span>{label}</span>
+                  <span>{value}%</span>
+                </div>
+                <div style={{ height: 5, borderRadius: 999, background: 'rgba(255,255,255,0.08)', overflow: 'hidden' }}>
+                  <div style={{ width: `${value}%`, height: '100%', background: 'linear-gradient(90deg, var(--accent-cyan), var(--success))' }} />
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       )}

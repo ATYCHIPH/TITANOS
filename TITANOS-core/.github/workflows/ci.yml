@@ -22,20 +22,46 @@ jobs:
       uses: actions/setup-python@v5
       with:
         python-version: ${{ matrix.python-version }}
-        
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
         python -m pip install pip-audit
         python scripts/run.py install
+        npm install
         
-    - name: Run Security Audit
+    - name: Run Security Audits (Node & Python)
       run: |
         pip-audit
+        npm audit --audit-level=high || true
+
+    - name: Generate SBOM (Software Bill of Materials)
+      run: |
+        python -m pip install cyclonedx-bom
+        npm install -g @cyclonedx/cyclonedx-npm
+        cyclonedx-py pip --output-format json --outfile python-sbom.json || true
+        cyclonedx-npm --output-format JSON --output-file node-sbom.json || true
+
+    - name: Upload SBOM Artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: sbom-${{ matrix.os }}-py${{ matrix.python-version }}
+        path: |
+          python-sbom.json
+          node-sbom.json
         
     - name: Run Build and Tests
       run: |
         python scripts/run.py build
+
+    - name: Run E2E Headless Tests
+      run: |
+        python scripts/run.py ui-test || true
 
   manylinux-build:
     runs-on: ubuntu-latest

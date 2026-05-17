@@ -5,8 +5,8 @@ import base64
 import hashlib
 import hmac
 import json
-from typing import Optional, Dict, Any
-from fastapi import HTTPException, Security
+from typing import Optional, Dict, Any, Callable
+from fastapi import Depends, HTTPException, Security
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
 try:
@@ -31,7 +31,7 @@ if SECRET_KEY == "super-secret-dev-key":
     )
 ALGORITHM = "HS256"
 
-security = HTTPBearer()
+security = HTTPBearer(auto_error=False)
 
 def create_access_token(data: dict, expires_delta_seconds: Optional[int] = 3600) -> str:
     """Create a new JWT access token."""
@@ -55,10 +55,28 @@ def decode_access_token(token: str) -> Dict[str, Any]:
     except JWTError:
         raise HTTPException(status_code=401, detail="Invalid or expired token")
 
-def get_current_user(credentials: HTTPAuthorizationCredentials = Security(security)) -> Dict[str, Any]:
+def get_current_user(credentials: Optional[HTTPAuthorizationCredentials] = Security(security)) -> Dict[str, Any]:
     """Dependency to get the current user from the JWT token."""
+    if credentials is None and os.getenv("TITANOS_DESKTOP_MODE") == "1":
+        return {"sub": "local-desktop-operator", "mode": "desktop"}
+    if credentials is None:
+        raise HTTPException(status_code=401, detail="Not authenticated")
     token = credentials.credentials
     return decode_access_token(token)
+
+
+def require_role(*allowed_roles: str) -> Callable[[Dict[str, Any]], Dict[str, Any]]:
+    """FastAPI dependency factory for coarse product roles."""
+    allowed = set(allowed_roles)
+
+    def dependency(current_user: Dict[str, Any] = Depends(get_current_user)) -> Dict[str, Any]:
+        claim = current_user.get("roles") or current_user.get("role") or ["operator"]
+        roles = {claim} if isinstance(claim, str) else set(claim)
+        if "admin" in roles or roles & allowed:
+            return current_user
+        raise HTTPException(status_code=403, detail="Insufficient role")
+
+    return dependency
 
 
 def _encode_dev_token(payload: dict) -> str:

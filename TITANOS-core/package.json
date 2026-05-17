@@ -8,10 +8,18 @@
   "scripts": {
     "desktop": "electron .",
     "desktop:no-backend": "set TITANOS_DESKTOP_NO_BACKEND=1&& electron .",
+    "ui:build": "npm --prefix ../titanos-ui run build",
+    "ui:stage": "node packaging/scripts/stage-ui.cjs",
+    "ui:desktop": "npm run ui:build && npm run ui:stage",
     "backend:bundle": "pyinstaller packaging/pyinstaller/titanos-backend.spec --noconfirm",
     "desktop:stage-backend": "node packaging/scripts/stage-backend.cjs",
-    "dist:win": "npm run backend:bundle && npm run desktop:stage-backend && electron-builder --win nsis",
-    "dist:dir": "npm run backend:bundle && npm run desktop:stage-backend && electron-builder --dir",
+    "backend:smoke": "node packaging/scripts/smoke-backend.cjs",
+    "release:clean": "node packaging/scripts/clean-release.cjs",
+    "release:manifest": "node packaging/scripts/artifact-manifest.cjs",
+    "dist:win": "npm run ui:desktop && npm run backend:bundle && npm run desktop:stage-backend && npm run backend:smoke && electron-builder --win nsis",
+    "dist:mac": "npm run ui:desktop && npm run backend:bundle && npm run desktop:stage-backend && npm run backend:smoke && electron-builder --mac",
+    "dist:linux": "npm run ui:desktop && npm run backend:bundle && npm run desktop:stage-backend && npm run backend:smoke && electron-builder --linux AppImage deb",
+    "dist:dir": "npm run release:clean && npm run ui:desktop && npm run backend:bundle && npm run desktop:stage-backend && npm run backend:smoke && electron-builder --dir && npm run release:manifest",
     "test": "cypress run"
   },
   "devDependencies": {
@@ -27,9 +35,12 @@
     },
     "files": [
       "desktop/**/*",
+      "desktop-ui/**/*",
       "ui/**/*",
+      "assets/**/*",
       "package.json"
     ],
+    "icon": "assets/icon.ico",
     "extraResources": [
       {
         "from": "desktop-runtime/backend",
@@ -40,9 +51,22 @@
       }
     ],
     "win": {
+      "icon": "assets/icon.ico",
       "target": [
         "nsis"
       ]
+    },
+    "mac": {
+      "target": [
+        "dmg"
+      ]
+    },
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "category": "Development"
     },
     "nsis": {
       "oneClick": false,

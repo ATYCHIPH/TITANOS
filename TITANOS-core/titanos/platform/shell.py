@@ -60,7 +60,7 @@ class Shell:
             text: Whether to return output as text.
             timeout: Command timeout in seconds.
         """
-        system = platform.system()
+        system = "Windows" if sys.platform.startswith("win") else platform.system()
         detected_shell = cls.get_default_shell()
         
         # On Windows, subprocess.run(shell=True) defaults to cmd.exe.
@@ -69,11 +69,10 @@ class Shell:
             if isinstance(command, str):
                 # Use powershell -Command for strings
                 command = [detected_shell, "-NonInteractive", "-NoProfile", "-Command", command]
+                shell = False # We are now running the shell executable directly
             else:
-                # Join list commands into a single command string for powershell
-                cmd_str = " ".join(f'"{arg}"' if " " in arg else arg for arg in command)
-                command = [detected_shell, "-NonInteractive", "-NoProfile", "-Command", cmd_str]
-            shell = False # We are now running the shell executable directly
+                # List commands are already tokenized; run them directly.
+                shell = False
             executable = None
         else:
             executable = detected_shell if shell else None

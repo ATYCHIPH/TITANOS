@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 import unittest
+import platform
+import shlex
+import sys
 
 from titanos.body.hands import HandsAdapter
 from titanos.contracts import BodySystem, BodyTask
@@ -29,8 +32,13 @@ class HandsAdapterTests(unittest.TestCase):
         self.assertIn("escapes project root", result.summary)
 
     def test_runs_explicit_command(self) -> None:
+        python_cmd = (
+            f'& "{sys.executable}" -m titanos --sources'
+            if platform.system() == "Windows"
+            else f"{shlex.quote(sys.executable)} -m titanos --sources"
+        )
         result = HandsAdapter().run(
-            BodyTask(goal="run command: python -m titanos --sources")
+            BodyTask(goal=f"run command: {python_cmd}")
         )
 
         self.assertEqual(result.status, "success")

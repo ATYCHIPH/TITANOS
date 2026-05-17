@@ -33,6 +33,7 @@ class AuthService {
   }
 
   async signup(name, email, password) {
+    void password;
     return new Promise((resolve) => {
       setTimeout(() => {
         const user = { id: 'u1', name, email, onboarded: false };
@@ -55,6 +56,7 @@ class AuthService {
   }
 
   async resetPassword(token, newPassword) {
+    void newPassword;
     console.log('Reset password with token:', token);
     return new Promise(resolve => setTimeout(resolve, 800));
   }

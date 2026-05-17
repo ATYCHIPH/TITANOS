@@ -2,6 +2,7 @@
  * TITANOS Secure Storage Service
  * Isolated adapter for managing sensitive data like API keys.
  * Uses local storage with masking for mock implementation.
+ * [MOCK ONLY] - TEMPORARY/MOCK: Do not store raw API keys in plain localStorage in production. Use backend secure storage.
  */
 
 const KEYS_STORAGE_KEY = 'titanos_provider_keys';
@@ -42,7 +43,12 @@ class StorageService {
 
   getKeys() {
     // Never return the actual raw API keys in this list, only metadata and masked version
-    return this.keys.map(({ apiKey, ...rest }) => rest);
+    return this.keys.map(({ providerId, id, createdAt, maskedKey }) => ({
+      providerId,
+      id,
+      createdAt,
+      maskedKey,
+    }));
   }
 
   async getRawKey(providerId) {

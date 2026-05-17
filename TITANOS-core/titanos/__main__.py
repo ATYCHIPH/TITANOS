@@ -2,12 +2,6 @@ from __future__ import annotations
 
 import argparse
 
-from .contracts import BodySystem, ChatMessage
-from .config.settings import settings
-from .defaults import create_titanos
-from .providers import configured_model_provider, provider_health_report, provider_report
-from .sources import source_report
-
 
 def main() -> int:
     parser = argparse.ArgumentParser(prog="titanos", description="TITANOS CLI")
@@ -51,16 +45,29 @@ def main() -> int:
     args = parser.parse_args()
 
     if args.sources:
+        from .sources import source_report
+
         print("TITANOS source bodies:")
         for line in source_report():
             print(f"- {line}")
         return 0
 
     if args.providers:
+        from .providers import provider_report
+
         print("TITANOS AI providers:")
         for line in provider_report():
             print(f"- {line}")
         return 0
+
+    if args.command == "app":
+        from .app import start_app
+        start_app(port=args.port, use_window=args.ui)
+        return 0
+
+    from .contracts import BodySystem, ChatMessage
+    from .config.settings import settings
+    from .defaults import create_titanos
 
     titanos = create_titanos()
 
@@ -90,12 +97,9 @@ def main() -> int:
                 break
         return 0
 
-    if args.command == "app":
-        from .app import start_app
-        start_app(port=args.port, use_window=args.ui)
-        return 0
-
     if args.command == "doctor":
+        from .providers import configured_model_provider, provider_health_report
+
         print("TITANOS doctor:")
         print("- CLI: ok")
         print(f"- Version: {settings.VERSION}")

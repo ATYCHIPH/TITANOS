@@ -32,9 +32,13 @@ class Settings:
         self.VERSION = os.getenv("TITANOS_VERSION", "0.1.0")
 
         self.BASE_DIR = Path(__file__).parent.parent.parent
+        # Central runtime data directory – override with TITANOS_DATA_DIR
         self.DATA_DIR = Path(os.getenv("TITANOS_DATA_DIR", str(self.BASE_DIR / ".titanos")))
         self.MEMORY_PATH = self.DATA_DIR / "memory"
         self.LOG_PATH = self.DATA_DIR / "logs"
+        self.SESSIONS_PATH = self.DATA_DIR / "sessions"
+        # Single SQLite file for approvals, run records, and audit log
+        self.RUNTIME_DB = self.DATA_DIR / "titanos.sqlite"
 
         self.OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
         self.ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
@@ -48,6 +52,7 @@ class Settings:
         self.QUIET_HOURS_ENABLED = _bool_env("TITANOS_QUIET_HOURS_ENABLED", False)
         self.LOG_LEVEL = os.getenv("TITANOS_LOG_LEVEL", "INFO")
         self.COMMAND_TIMEOUT_SECONDS = _int_env("TITANOS_COMMAND_TIMEOUT_SECONDS", 30)
+        self.APPROVAL_EXPIRY_HOURS = _int_env("TITANOS_APPROVAL_EXPIRY_HOURS", 24)
         self.COMMAND_ALLOWLIST = os.getenv("TITANOS_COMMAND_ALLOWLIST", "")
         self.COMMAND_DENYLIST = os.getenv(
             "TITANOS_COMMAND_DENYLIST",
@@ -64,9 +69,11 @@ class Settings:
         self.JWT_SECRET = os.getenv("TITANOS_JWT_SECRET", "super-secret-dev-key")
         self.ENVIRONMENT = os.getenv("TITANOS_ENVIRONMENT", "development")
 
+        # Ensure runtime directories exist
         self.DATA_DIR.mkdir(parents=True, exist_ok=True)
         self.MEMORY_PATH.mkdir(parents=True, exist_ok=True)
         self.LOG_PATH.mkdir(parents=True, exist_ok=True)
+        self.SESSIONS_PATH.mkdir(parents=True, exist_ok=True)
 
 
 settings = Settings()

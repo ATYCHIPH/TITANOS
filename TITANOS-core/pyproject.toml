@@ -3,6 +3,11 @@ name = "titanos-core"
 version = "0.1.0"
 description = "TITANOS brain and body-system contracts"
 requires-python = ">=3.11"
+authors = [
+    {name = "TITANOS Team"},
+]
+readme = "README.md"
+license = "MIT"
 dependencies = [
     "fastapi>=0.110",
     "pydantic-settings>=2.0",
@@ -12,6 +17,12 @@ dependencies = [
     "cibuildwheel>=2.16",
     "python-jose[cryptography]>=3.3.0",
     "prometheus-fastapi-instrumentator>=7.0",
+    "opentelemetry-api>=1.28.0",
+    "logfire-api>=3.14.1",
+    "genai-prices>=0.0.48",
+    "griffe>=1.0",
+    "pydantic-ai-slim>=1.0",
+    "openai>=2.29.0",
 ]
 
 [project.optional-dependencies]
@@ -24,11 +35,6 @@ dev = [
     "black>=24.0.0",
     "isort>=5.13.0",
 ]
-authors = [
-    {name = "TITANOS Team"},
-]
-readme = "README.md"
-license = {text = "MIT"}
 
 [build-system]
 requires = ["setuptools>=68", "wheel", "cibuildwheel>=2.16"]
@@ -36,6 +42,9 @@ build-backend = "setuptools.build_meta"
 
 [project.scripts]
 titanos = "titanos.__main__:main"
+
+[tool.setuptools.packages.find]
+include = ["titanos*"]
 
 [tool.cibuildwheel]
 # Build wheels for Windows, macOS and manylinux

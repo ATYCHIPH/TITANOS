@@ -1,31 +1,138 @@
-import React, { useState } from 'react';
+import { cloneElement, isValidElement, useEffect, useState } from 'react';
 import { 
-  Layout, 
   Search, 
   Bell, 
   Settings as SettingsIcon, 
   Menu, 
-  ChevronLeft, 
-  Plus,
-  Command,
   User,
-  LogOut,
   Sparkles,
-  Zap,
   Terminal,
   Activity,
   Box,
   FileText,
   Globe,
-  CheckSquare
+  CheckSquare,
+  RefreshCw,
+  AlertCircle
 } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import Logo from '../shared/Logo';
+import { apiService } from '../../services/apiService';
 
-const AppShell = ({ children, user, onLogout }) => {
+const AppShell = ({ children }) => {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [runtimeInfo, setRuntimeInfo] = useState(null);
+  const [isRetrying, setIsRetrying] = useState(false);
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [providerWarning, setProviderWarning] = useState(false);
+
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    if (window.titanosDesktop) {
+      const refreshDesktopRuntime = async () => {
+        try {
+          const info = await window.titanosDesktop.getRuntimeInfo();
+          try {
+            await apiService.getRuntimeStatus();
+            setRuntimeInfo({
+              ...info,
+              backend: {
+                ...(info.backend || {}),
+                state: info.backend?.state === 'external' ? 'external' : 'ready',
+                message: info.backend?.message || 'Connected to packaged TITANOS backend.',
+              },
+            });
+          } catch {
+            setRuntimeInfo(info);
+          }
+        } catch (err) {
+          console.error("Failed to read desktop runtime:", err);
+        }
+      };
+      refreshDesktopRuntime();
+      const unsubscribe = window.titanosDesktop.onBackendStatus((info) => {
+        setRuntimeInfo(info);
+      });
+      const interval = setInterval(refreshDesktopRuntime, 3000);
+      return () => {
+        window.removeEventListener('online', handleOnline);
+        window.removeEventListener('offline', handleOffline);
+        clearInterval(interval);
+        unsubscribe();
+      };
+    } else {
+      const checkStatus = () => {
+        apiService.getRuntimeStatus()
+          .then(() => {
+            setRuntimeInfo({
+              apiBase: '',
+              backend: { state: 'ready', message: 'Connected to web endpoint.' },
+              packaged: false,
+              platform: 'web',
+              version: '1.0.0-web'
+            });
+          })
+          .catch(() => {
+            setRuntimeInfo({
+              apiBase: '',
+              backend: { state: 'crashed', message: 'Web endpoint is offline.' },
+              packaged: false,
+              platform: 'web',
+              version: '1.0.0-web'
+            });
+          });
+      };
+      checkStatus();
+      const interval = setInterval(checkStatus, 5000);
+      return () => {
+        window.removeEventListener('online', handleOnline);
+        window.removeEventListener('offline', handleOffline);
+        clearInterval(interval);
+      };
+    }
+  }, []);
+
+  useEffect(() => {
+    if (['ready', 'external'].includes(runtimeInfo?.backend?.state)) {
+      apiService.getProvidersHealth()
+        .then(data => {
+          const providers = data.providers || [];
+          const anyAvailable = providers.some(p => ['online', 'healthy', 'saved'].includes(p.status));
+          setProviderWarning(!anyAvailable);
+        })
+        .catch(() => {
+          apiService.getProviderConfigs().then(config => {
+            const hasKey = (config.providers || []).some(p => Boolean(p.secret_ref || p.masked_key));
+            setProviderWarning(!hasKey);
+          }).catch(() => {});
+        });
+    }
+  }, [runtimeInfo]);
+
+  const handleReconnect = async () => {
+    setIsRetrying(true);
+    if (window.titanosDesktop) {
+      try {
+        const info = await window.titanosDesktop.restartBackend();
+        setRuntimeInfo(info);
+      } catch (err) {
+        console.error("Failed to restart backend:", err);
+      }
+    } else {
+      try {
+        await apiService.getRuntimeStatus();
+      } catch (err) {
+        console.error("Retry failed:", err);
+      }
+    }
+    setIsRetrying(false);
+  };
   const [activeWorkspace, setActiveWorkspace] = useState('universal');
-  const location = useLocation();
+  useLocation();
 
   const workspaces = [
     { id: 'universal', name: 'Universal', icon: Sparkles },
@@ -36,8 +143,6 @@ const AppShell = ({ children, user, onLogout }) => {
     { id: 'data', name: 'Data', icon: Activity },
     { id: 'daily', name: 'Workflow', icon: CheckSquare },
   ];
-
-  const isActive = (path) => location.pathname.startsWith(path);
 
   return (
     <div style={{ display: 'flex', height: '100vh', background: 'var(--bg-primary)' }}>
@@ -118,14 +223,9 @@ const AppShell = ({ children, user, onLogout }) => {
             </div>
             {!sidebarCollapsed && (
               <div style={{ flex: 1, overflow: 'hidden' }}>
-                <div style={{ fontSize: '0.85rem', fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{user?.name || 'User'}</div>
-                <div style={{ fontSize: '0.7rem', color: 'var(--text-tertiary)' }}>Pro Plan</div>
+                <div style={{ fontSize: '0.85rem', fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Operator Workspace</div>
+                <div style={{ fontSize: '0.7rem', color: 'var(--text-tertiary)' }}>Local Mode</div>
               </div>
-            )}
-            {!sidebarCollapsed && (
-              <button className="btn btn-ghost" style={{ padding: '4px' }} onClick={onLogout}>
-                <LogOut size={16} color="var(--error)" />
-              </button>
             )}
           </div>
         </div>
@@ -158,16 +258,146 @@ const AppShell = ({ children, user, onLogout }) => {
               <Bell size={18} />
             </button>
             <div style={{ width: '1px', height: '24px', background: 'var(--border-subtle)' }} />
-            <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '4px' }}>
-              <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--success)' }} />
-              Agent Ready
-            </div>
+            
+            {/* Backend Status UX */}
+            {(() => {
+              const state = runtimeInfo?.backend?.state || 'starting';
+              const message = runtimeInfo?.backend?.message || 'Initializing...';
+              
+              let statusText = 'Starting...';
+              let dotColor = 'orange';
+              let showRetry = false;
+
+              if (state === 'ready' || state === 'external') {
+                statusText = state === 'external' ? 'Connected (Ext)' : 'Connected';
+                dotColor = 'var(--success)';
+              } else if (state === 'crashed' || state === 'timeout' || state === 'missing' || state === 'disabled') {
+                statusText = 'Backend Offline';
+                dotColor = 'var(--error)';
+                showRetry = true;
+              } else if (state === 'starting' || state === 'restarting') {
+                statusText = 'Connecting...';
+                dotColor = 'orange';
+              }
+
+              return (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-sm)' }}>
+                  <div 
+                    title={message}
+                    style={{ 
+                      fontSize: '0.8rem', 
+                      color: 'var(--text-secondary)', 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      gap: '6px',
+                      background: 'rgba(255,255,255,0.02)',
+                      padding: '4px 10px',
+                      borderRadius: 'var(--radius-md)',
+                      border: '1px solid var(--border-subtle)'
+                    }}
+                  >
+                    <div style={{ 
+                      width: '8px', 
+                      height: '8px', 
+                      borderRadius: '50%', 
+                      background: dotColor,
+                      boxShadow: `0 0 8px ${dotColor}`
+                    }} />
+                    <span>{statusText}</span>
+                  </div>
+                  {showRetry && (
+                    <button 
+                      className="btn btn-primary"
+                      onClick={handleReconnect}
+                      disabled={isRetrying}
+                      style={{ 
+                        padding: '2px 8px', 
+                        fontSize: '0.75rem',
+                        height: '24px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px'
+                      }}
+                    >
+                      <RefreshCw size={12} className={isRetrying ? "spin" : ""} />
+                      {isRetrying ? 'Retrying...' : 'Retry'}
+                    </button>
+                  )}
+                </div>
+              );
+            })()}
           </div>
         </header>
 
+        {/* Premium Degraded UX Banners */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '12px 24px 0 24px' }}>
+          {!isOnline && (
+            <div className="fade-in" style={{
+              background: 'rgba(239, 68, 68, 0.08)',
+              border: '1px solid rgba(239, 68, 68, 0.3)',
+              borderRadius: 'var(--radius-md)',
+              padding: '10px 16px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              color: '#fca5a5',
+              fontSize: '0.85rem'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <AlertCircle size={16} />
+                <span><strong>No Network Connection.</strong> Universal tools and external API providers are running in degraded offline fallback mode.</span>
+              </div>
+            </div>
+          )}
+
+          {isOnline && runtimeInfo?.backend?.state && ['crashed', 'timeout', 'missing', 'disabled'].includes(runtimeInfo.backend.state) && (
+            <div className="fade-in" style={{
+              background: 'rgba(245, 158, 11, 0.08)',
+              border: '1px solid rgba(245, 158, 11, 0.3)',
+              borderRadius: 'var(--radius-md)',
+              padding: '10px 16px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              color: '#fde047',
+              fontSize: '0.85rem'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <AlertCircle size={16} />
+                <span><strong>TITANOS Backend Offline.</strong> The operator workspace is running in degraded local-only mode. All file and execution tasks are mocked.</span>
+              </div>
+              <button className="btn btn-primary" onClick={handleReconnect} disabled={isRetrying} style={{ padding: '4px 10px', fontSize: '0.75rem', height: '24px' }}>
+                {isRetrying ? 'Starting...' : 'Restart Backend'}
+              </button>
+            </div>
+          )}
+
+          {isOnline && runtimeInfo?.backend?.state === 'ready' && providerWarning && (
+            <div className="fade-in" style={{
+              background: 'rgba(59, 130, 246, 0.08)',
+              border: '1px solid rgba(59, 130, 246, 0.3)',
+              borderRadius: 'var(--radius-md)',
+              padding: '10px 16px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              color: '#93c5fd',
+              fontSize: '0.85rem'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Sparkles size={16} />
+                <span><strong>Missing API Credentials.</strong> No active AI provider API key is set. Go to settings to authorize OpenAI/Anthropic models.</span>
+              </div>
+              <Link to="/settings" className="btn btn-ghost" style={{ padding: '4px 10px', fontSize: '0.75rem', height: '24px', textDecoration: 'none', border: '1px solid rgba(59, 130, 246, 0.3)' }}>
+                Configure Keys
+              </Link>
+            </div>
+          )}
+        </div>
+
         {/* Content Area */}
         <div style={{ flex: 1, overflow: 'hidden', display: 'flex' }}>
-          {children}
+          {isValidElement(children) ? cloneElement(children, { activeWorkspace }) : children}
         </div>
       </main>
     </div>

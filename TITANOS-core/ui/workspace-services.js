@@ -43,8 +43,13 @@ export const providers = [
 export function createInitialState() {
   return {
     auth: {
-      session: null,
-      verified: false,
+      session: {
+        email: "local@titanos.opensource",
+        name: "operator",
+        token: "local-open-source",
+        createdAt: new Date().toISOString(),
+      },
+      verified: true,
       resetRequested: false,
     },
     onboarding: {
@@ -61,6 +66,15 @@ export function createInitialState() {
       currentRoute: "workspace",
     },
     providers: {},
+    runtime: {
+      backendState: "starting",
+      backendMessage: "Starting local runtime.",
+      apiBase: "",
+      logDir: "",
+      dataDir: "",
+      packaged: false,
+      platform: "",
+    },
     agent: {
       conversation: [
         {
@@ -98,19 +112,6 @@ export function resetProductState() {
   localStorage.removeItem(STORAGE_KEY);
   localStorage.removeItem("titanos_token");
   localStorage.removeItem("titanos_session_id");
-}
-
-export function mockAuthLogin(email) {
-  const normalized = email.trim().toLowerCase();
-  if (!normalized.includes("@")) throw new Error("Use a valid email address.");
-  const token = btoa(`${normalized}:${Date.now()}`);
-  localStorage.setItem("titanos_token", token);
-  return {
-    email: normalized,
-    name: normalized.split("@")[0] || "operator",
-    token,
-    createdAt: new Date().toISOString(),
-  };
 }
 
 export function maskSecret(value) {
@@ -261,6 +262,7 @@ function mergeState(base, saved) {
     onboarding: { ...base.onboarding, ...(saved.onboarding || {}) },
     preferences: { ...base.preferences, ...(saved.preferences || {}) },
     providers: { ...base.providers, ...(saved.providers || {}) },
+    runtime: { ...base.runtime, ...(saved.runtime || {}) },
     agent: { ...base.agent, ...(saved.agent || {}) },
     activity: saved.activity || base.activity,
   };

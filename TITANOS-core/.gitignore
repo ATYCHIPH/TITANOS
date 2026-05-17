@@ -1,17 +1,15 @@
 # TITANOS Git Ignore
 
-# Logs
-.titanos/logs/
-server.out.log
-server.err.log
-BUILD_LOG.md
+# ── Runtime data directory ───────────────────────────────────────────────────
+# The entire .titanos/ directory is runtime-generated; only committed examples
+# or templates (if any) should be excluded explicitly.
+.titanos/
 
-# Sessions & Data
-.titanos/sessions/
-.titanos/*.sqlite
-.titanos/history/
+# ── Logs ─────────────────────────────────────────────────────────────────────
+logs/
+*.log
 
-# Python
+# ── Python ───────────────────────────────────────────────────────────────────
 __pycache__/
 *.pyc
 *.pyo
@@ -19,19 +17,31 @@ __pycache__/
 .pytest_cache/
 .coverage
 htmlcov/
-dist/
-build/
 *.egg-info/
 .venv/
 venv/
 
-# UI & Node
+# ── Build / dist artifacts ───────────────────────────────────────────────────
+dist/
+build/
+release/
+packaging/*.whl
+packaging/*.tar.gz
+
+# ── UI / Node ─────────────────────────────────────────────────────────────────
 node_modules/
 cypress/videos/
 cypress/screenshots/
 desktop-runtime/
-release/
-.DS_Store
+desktop-ui/
+scratch/
+.cache/
+.parcel-cache/
+.next/
 
-# Dev Certs
+# ── Dev certs ────────────────────────────────────────────────────────────────
 cert/*.pem
+
+# ── OS / editor ──────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db

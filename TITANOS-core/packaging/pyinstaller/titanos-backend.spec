@@ -9,9 +9,7 @@ a = Analysis(
     [str(root / "packaging" / "pyinstaller" / "titanos_backend_entry.py")],
     pathex=[str(root)],
     binaries=[],
-    datas=copy_metadata("genai-prices")
-    + copy_metadata("pydantic-ai-slim")
-    + copy_metadata("pydantic-ai"),
+    datas=copy_metadata("genai-prices"),
     hiddenimports=[
         "uvicorn.logging",
         "uvicorn.loops",
@@ -23,6 +21,16 @@ a = Analysis(
         "uvicorn.protocols.websockets.auto",
         "uvicorn.lifespan",
         "uvicorn.lifespan.on",
+        "fastapi",
+        "jose",
+        "prometheus_fastapi_instrumentator",
+        "openai",
+        "httpx",
+        "titanos.providers",
+        "titanos.server.app",
+        "titanos.body.cortex",
+        "titanos.body.hands",
+        "titanos.body.memory",
     ],
     hookspath=[],
     hooksconfig={},

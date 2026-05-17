@@ -1,4 +1,3 @@
-import React from 'react';
 import { Zap } from 'lucide-react';
 
 const Logo = ({ size = 24, showText = true }) => {

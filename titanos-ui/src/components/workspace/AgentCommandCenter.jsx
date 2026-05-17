@@ -1,5 +1,21 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { Send, Sparkles, Paperclip, Mic, ShieldAlert, CheckCircle2, Circle } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import {
+  Bot,
+  CheckCircle2,
+  Circle,
+  Mic,
+  Paperclip,
+  Search,
+  Send,
+  Sparkles
+} from 'lucide-react';
+
+const starterPrompts = [
+  'hello',
+  'what did I say before?',
+  'route this to memory',
+  'check provider health'
+];
 
 const AgentCommandCenter = ({ onCommand, conversation }) => {
   const [input, setInput] = useState('');
@@ -11,69 +27,119 @@ const AgentCommandCenter = ({ onCommand, conversation }) => {
     }
   }, [conversation]);
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    if (!input.trim()) return;
-    onCommand(input);
+  const submit = (value = input) => {
+    if (!value.trim()) return;
+    onCommand(value.trim());
     setInput('');
   };
 
+  const handleSubmit = (event) => {
+    event.preventDefault();
+    submit();
+  };
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      {/* Messages Area */}
-      <div 
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minWidth: 0 }}>
+      <div className="panel-header">
+        <div>
+          <div className="eyebrow">Agent</div>
+          <div style={{ fontWeight: 700, marginTop: 2 }}>New chat</div>
+        </div>
+        <div className="status-pill"><span className="status-dot" /> Brain linked</div>
+      </div>
+
+      <div style={{ padding: 14, borderBottom: '1px solid var(--border-subtle)' }}>
+        <div className="glass-tile" style={{ display: 'flex', alignItems: 'center', gap: 10, height: 38, padding: '0 12px' }}>
+          <Search size={15} color="var(--text-tertiary)" />
+          <span style={{ color: 'var(--text-tertiary)', fontSize: '0.82rem' }}>Search current conversation</span>
+        </div>
+      </div>
+
+      <div
         ref={scrollRef}
-        style={{ 
-          flex: 1, 
-          overflowY: 'auto', 
-          padding: 'var(--space-lg)',
+        style={{
+          flex: 1,
+          overflowY: 'auto',
+          padding: 16,
           display: 'flex',
           flexDirection: 'column',
-          gap: 'var(--space-lg)'
+          gap: 14
         }}
       >
         {conversation.length === 0 ? (
-          <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center' }}>
-            <div style={{ width: '80px', height: '80px', background: 'var(--bg-tertiary)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 'var(--space-md)' }}>
-              <Sparkles size={40} color="var(--accent-primary)" />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div className="glass-tile" style={{ padding: 18 }}>
+              <div style={{
+                width: 42,
+                height: 42,
+                borderRadius: 10,
+                display: 'grid',
+                placeItems: 'center',
+                background: 'linear-gradient(135deg, rgba(35,211,238,0.22), rgba(124,92,255,0.24))',
+                color: 'var(--accent-cyan)',
+                marginBottom: 14
+              }}>
+                <Sparkles size={22} />
+              </div>
+              <h3 style={{ fontSize: '1.1rem', marginBottom: 8 }}>Plan, search, build anything</h3>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.86rem', lineHeight: 1.55 }}>
+                TITANOS now sends this pane through the backend brain, keeps a scoped session, and routes conversation separately from work commands.
+              </p>
             </div>
-            <h3 style={{ fontSize: '1.2rem', fontWeight: 600, marginBottom: 'var(--space-sm)' }}>How can I help today?</h3>
-            <p style={{ color: 'var(--text-tertiary)', fontSize: '0.9rem', maxWidth: '280px' }}>
-              Try: "Analyze the current repo and suggest improvements" or "Build a landing page for my new product".
-            </p>
+            <div style={{ display: 'grid', gap: 8 }}>
+              {starterPrompts.map((prompt) => (
+                <button
+                  key={prompt}
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => submit(prompt)}
+                  style={{ justifyContent: 'space-between', fontSize: '0.82rem' }}
+                >
+                  {prompt}
+                  <Send size={13} />
+                </button>
+              ))}
+            </div>
           </div>
         ) : (
           conversation.map((msg, idx) => (
-            <div key={idx} style={{ 
-              alignSelf: msg.type === 'user' ? 'flex-end' : 'flex-start',
-              maxWidth: '85%'
+            <div key={`${msg.type}-${idx}`} style={{
+              alignSelf: msg.type === 'user' ? 'flex-end' : 'stretch',
+              maxWidth: msg.type === 'user' ? '84%' : '100%'
             }}>
-              <div style={{ 
-                background: msg.type === 'user' ? 'var(--accent-primary)' : 'var(--bg-tertiary)',
-                color: 'white',
-                padding: 'var(--space-md)',
-                borderRadius: 'var(--radius-lg)',
-                borderBottomRightRadius: msg.type === 'user' ? '0' : 'var(--radius-lg)',
-                borderBottomLeftRadius: msg.type === 'agent' ? '0' : 'var(--radius-lg)',
-                fontSize: '0.95rem',
-                lineHeight: '1.5',
-                boxShadow: 'var(--shadow-sm)'
+              <div className={msg.type === 'user' ? '' : 'glass-tile'} style={{
+                background: msg.type === 'user'
+                  ? 'linear-gradient(135deg, var(--accent-primary), var(--accent-secondary))'
+                  : undefined,
+                color: 'var(--text-primary)',
+                padding: msg.type === 'user' ? '12px 14px' : 14,
+                borderRadius: msg.type === 'user' ? '14px 14px 4px 14px' : 12,
+                fontSize: '0.9rem',
+                lineHeight: 1.5,
+                boxShadow: msg.type === 'user' ? '0 12px 26px rgba(79,140,255,0.2)' : undefined
               }}>
+                {msg.type === 'agent' && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                    <Bot size={15} color="var(--accent-cyan)" />
+                    <span className="eyebrow">{msg.system || 'TITANOS'}</span>
+                    {msg.status && <span className="status-pill" style={{ height: 22 }}>{msg.status}</span>}
+                  </div>
+                )}
                 {msg.content}
               </div>
-              
+
               {msg.plan && (
-                <div className="card" style={{ marginTop: 'var(--space-md)', padding: 'var(--space-sm)', background: 'rgba(255,255,255,0.02)' }}>
-                  <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-tertiary)', marginBottom: 'var(--space-sm)', textTransform: 'uppercase' }}>Current Plan</div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-xs)' }}>
-                    {msg.plan.map(step => (
-                      <div key={step.id} style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-sm)', fontSize: '0.85rem' }}>
-                        {step.status === 'completed' ? <CheckCircle2 size={14} color="var(--success)" /> : 
-                         step.status === 'running' ? <div className="spinner-small" /> : <Circle size={14} color="var(--text-tertiary)" />}
-                        <span style={{ color: step.status === 'pending' ? 'var(--text-tertiary)' : 'var(--text-primary)' }}>{step.title}</span>
-                      </div>
-                    ))}
-                  </div>
+                <div style={{ marginTop: 8, display: 'grid', gap: 6 }}>
+                  {msg.plan.map((step) => (
+                    <div key={step.id} style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--text-secondary)', fontSize: '0.78rem' }}>
+                      {step.status === 'completed'
+                        ? <CheckCircle2 size={14} color="var(--success)" />
+                        : step.status === 'running'
+                          ? <span className="spinner-small" />
+                          : <Circle size={14} color="var(--text-tertiary)" />}
+                      {step.title}
+                    </div>
+                  ))}
                 </div>
               )}
             </div>
@@ -81,55 +147,41 @@ const AgentCommandCenter = ({ onCommand, conversation }) => {
         )}
       </div>
 
-      {/* Input Area */}
-      <div style={{ padding: 'var(--space-lg)', borderTop: '1px solid var(--border-subtle)' }}>
-        <form 
-          onSubmit={handleSubmit}
-          style={{ 
-            background: 'var(--bg-tertiary)', 
-            borderRadius: 'var(--radius-xl)', 
-            padding: 'var(--space-xs)',
-            display: 'flex',
-            flexDirection: 'column',
-            border: '1px solid var(--border-subtle)',
-            boxShadow: 'var(--shadow-md)'
-          }}
-        >
-          <textarea 
+      <div style={{ padding: 16, borderTop: '1px solid var(--border-subtle)' }}>
+        <form onSubmit={handleSubmit} className="glass-tile" style={{ padding: 8 }}>
+          <textarea
             value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder="Type a command..."
-            style={{ 
-              background: 'transparent',
-              border: 'none',
-              color: 'var(--text-primary)',
-              padding: 'var(--space-md)',
+            onChange={(event) => setInput(event.target.value)}
+            placeholder="Ask TITANOS..."
+            style={{
+              width: '100%',
+              minHeight: 78,
               resize: 'none',
-              minHeight: '80px',
+              border: 'none',
+              outline: 'none',
+              background: 'transparent',
+              color: 'var(--text-primary)',
+              padding: 10,
               fontFamily: 'inherit',
-              fontSize: '0.95rem',
-              outline: 'none'
+              fontSize: '0.9rem'
             }}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                handleSubmit(e);
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault();
+                submit();
               }
             }}
           />
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 'var(--space-xs) var(--space-sm)' }}>
-            <div style={{ display: 'flex', gap: 'var(--space-xs)' }}>
-              <button type="button" className="btn btn-ghost" style={{ padding: '6px' }}><Paperclip size={18} /></button>
-              <button type="button" className="btn btn-ghost" style={{ padding: '6px' }}><Mic size={18} /></button>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ display: 'flex', gap: 6 }}>
+              <button type="button" className="btn btn-ghost" style={{ padding: 7 }} title="Attach context"><Paperclip size={17} /></button>
+              <button type="button" className="btn btn-ghost" style={{ padding: 7 }} title="Voice input"><Mic size={17} /></button>
             </div>
-            <button type="submit" className="btn btn-primary" style={{ padding: '6px 16px', borderRadius: 'var(--radius-lg)' }}>
-              <Send size={18} />
+            <button type="submit" className="btn btn-primary neon-button" style={{ padding: '8px 12px', borderRadius: 10 }} title="Send">
+              <Send size={17} />
             </button>
           </div>
         </form>
-        <div style={{ fontSize: '0.7rem', color: 'var(--text-tertiary)', textAlign: 'center', marginTop: 'var(--space-sm)' }}>
-          Press Enter to send, Shift+Enter for new line
-        </div>
       </div>
     </div>
   );

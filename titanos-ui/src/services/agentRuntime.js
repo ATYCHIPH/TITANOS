@@ -1,10 +1,11 @@
 /**
  * TITANOS Agent Runtime Abstraction
  * Simulates the agent's thinking, planning, and execution process.
+ * [MOCK ONLY] - Currently uses mock plans and execution.
  */
 
 class AgentRuntime {
-  async processCommand(command, category = 'general') {
+  async processCommand(command) {
     // 1. Classification
     const classification = this._classify(command);
     
@@ -61,7 +62,7 @@ class AgentRuntime {
     return categorySpecific[category] || genericSteps;
   }
 
-  async executeStep(stepId, agentState) {
+  async executeStep(stepId) {
     // Mock execution
     return new Promise((resolve) => {
       setTimeout(() => {

@@ -3,6 +3,10 @@ import sys
 import subprocess
 import platform
 import argparse
+import json
+import tempfile
+import time
+import urllib.request
 from pathlib import Path
 
 # Add project root to path so we can import titanos
@@ -94,6 +98,10 @@ def dev():
     except KeyboardInterrupt:
         print("\nStopping dev server...")
 
+def desktop():
+    print("Starting TITANOS desktop app...")
+    run_command(["npm.cmd" if platform.system() == "Windows" else "npm", "run", "desktop"])
+
 def install():
     print("Installing dependencies...")
     run_command([sys.executable, "-m", "pip", "install", "-e", "."])
@@ -108,9 +116,145 @@ def doctor():
     out = run_command([sys.executable, "-m", "titanos", "doctor"])
     print(out)
 
+def desktop_smoke():
+    """Start the source backend in desktop mode and verify its local API contract."""
+    port = int(os.getenv("TITANOS_DESKTOP_SMOKE_PORT", "18878"))
+    with tempfile.TemporaryDirectory(prefix="titanos-desktop-smoke-") as data_dir:
+        env = {
+            **os.environ,
+            "TITANOS_DESKTOP_MODE": "1",
+            "TITANOS_HOST": "127.0.0.1",
+            "TITANOS_PORT": str(port),
+            "TITANOS_DATA_DIR": data_dir,
+            "TITANOS_ENVIRONMENT": "production",
+            "TITANOS_JWT_SECRET": "desktop-smoke-test-secret",
+            "PYDANTIC_DISABLE_PLUGINS": "__all__",
+        }
+        command = [sys.executable, "-m", "titanos", "app", "--port", str(port)]
+        print(f"Running desktop backend smoke on 127.0.0.1:{port}...")
+        process = subprocess.Popen(
+            command,
+            cwd=str(PROJECT_ROOT),
+            env=env,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+        )
+        failed = False
+        try:
+            deadline = time.time() + int(os.getenv("TITANOS_DESKTOP_SMOKE_TIMEOUT_SECONDS", "45"))
+            last_error = None
+            while time.time() < deadline:
+                try:
+                    with urllib.request.urlopen(f"http://127.0.0.1:{port}/readyz", timeout=1) as response:
+                        ready = json.loads(response.read().decode("utf-8"))
+                    if ready.get("status") == "ready":
+                        break
+                except Exception as exc:  # noqa: BLE001 - smoke test reports the last connection error
+                    last_error = exc
+                time.sleep(0.4)
+            else:
+                raise RuntimeError(f"Desktop backend did not become ready: {last_error}")
+
+            with urllib.request.urlopen(f"http://127.0.0.1:{port}/runtime", timeout=2) as response:
+                runtime = json.loads(response.read().decode("utf-8"))
+            if runtime.get("mode") != "desktop":
+                raise RuntimeError(f"Expected desktop runtime mode, got: {runtime}")
+            if runtime.get("data_dir") != data_dir:
+                raise RuntimeError(f"Expected runtime data dir {data_dir}, got {runtime.get('data_dir')}")
+            print("Desktop backend smoke passed.")
+        except Exception:
+            failed = True
+            raise
+        finally:
+            process.terminate()
+            try:
+                process.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                process.kill()
+            if failed and process.returncode not in (0, None):
+                output = process.stdout.read() if process.stdout else ""
+                if output.strip():
+                    print(output.strip())
+
 def test():
     print("Running unit tests...")
     run_command([sys.executable, "-m", "unittest", "discover", "-s", "tests"])
+
+
+CLEAN_GLOBS = [
+    # Python bytecode / caches
+    "**/__pycache__",
+    "**/*.pyc",
+    "**/*.pyo",
+    "**/*.pyd",
+    "**/.pytest_cache",
+    "**/.coverage",
+    "**/htmlcov",
+    # Build / dist / egg-info
+    "dist",
+    "build",
+    "**/*.egg-info",
+    "release",
+    # Logs generated at runtime
+    "*.log",
+    # Frontend caches (not node_modules – that's a deliberate install)
+    ".cache",
+    ".parcel-cache",
+    ".next",
+    # Cypress test artifacts
+    "cypress/videos",
+    "cypress/screenshots",
+    # Desktop runtime bundle
+    "desktop-runtime",
+]
+
+# Source paths that the clean command must NEVER touch
+_SAFE_ROOTS = {
+    "titanos", "tests", "scripts", "docs", "ui", "assets",
+    "charts", "docker", "benchmarks", "cypress",
+    ".github", "packaging",
+}
+
+def clean():
+    """Remove generated/cache artifacts without touching source files."""
+    import glob as _glob
+    import shutil as _shutil
+
+    removed: list[str] = []
+    skipped: list[str] = []
+
+    for pattern in CLEAN_GLOBS:
+        for hit in PROJECT_ROOT.glob(pattern):
+            # Safety: refuse to delete anything inside a source root
+            rel = hit.relative_to(PROJECT_ROOT)
+            top = rel.parts[0] if rel.parts else ""
+            if top in _SAFE_ROOTS or rel == PROJECT_ROOT:
+                skipped.append(str(rel))
+                continue
+            # Extra guard: never delete .titanos (runtime DB lives there)
+            if top == ".titanos":
+                skipped.append(str(rel))
+                continue
+            try:
+                if hit.is_dir():
+                    _shutil.rmtree(hit)
+                    removed.append(f"[dir]  {rel}")
+                else:
+                    hit.unlink()
+                    removed.append(f"[file] {rel}")
+            except OSError as exc:
+                print(f"  Warning: could not remove {rel}: {exc}")
+
+    if removed:
+        print("Removed:")
+        for item in removed:
+            print(f"  {item}")
+    else:
+        print("Nothing to remove.")
+    if skipped:
+        print(f"Skipped (source-protected): {len(skipped)} path(s)")
+    print("Clean done.")
 
 def api_test():
     print("Running API tests...")
@@ -191,7 +335,9 @@ if __name__ == "__main__":
         "command",
         choices=[
             "build",
+            "clean",
             "dev",
+            "desktop",
             "serve",
             "install",
             "test",
@@ -200,6 +346,7 @@ if __name__ == "__main__":
             "ci",
             "package",
             "doctor",
+            "desktop-smoke",
         ],
         help="Command to run",
     )
@@ -208,8 +355,12 @@ if __name__ == "__main__":
     
     if args.command == "build":
         build()
+    elif args.command == "clean":
+        clean()
     elif args.command == "dev":
         dev()
+    elif args.command == "desktop":
+        desktop()
     elif args.command == "serve":
         serve()
     elif args.command == "install":
@@ -226,3 +377,5 @@ if __name__ == "__main__":
         package()
     elif args.command == "doctor":
         doctor()
+    elif args.command == "desktop-smoke":
+        desktop_smoke()

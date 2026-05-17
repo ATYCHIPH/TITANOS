@@ -4,7 +4,7 @@ const desktopBridge = window.titanosDesktop || {};
 const API_BASE =
   desktopBridge.apiBase ||
   window.TITANOS_API_BASE ||
-  (window.location.protocol === "file:" ? "http://127.0.0.1:18789" : "");
+  "";
 
 function getAuthHeader() {
   const token = localStorage.getItem("titanos_token");
@@ -107,6 +107,24 @@ export async function fetchLogs() {
     { level: "info", time: new Date().toISOString(), message: "TITANOS desktop runtime initialized" },
     { level: "debug", time: new Date().toISOString(), message: API_BASE ? `API adapter: ${API_BASE}` : "API adapter: browser-relative" },
   ];
+}
+
+export async function fetchRuntimeInfo() {
+  if (desktopBridge.getRuntimeInfo) return desktopBridge.getRuntimeInfo();
+  return {
+    apiBase: API_BASE,
+    backend: {
+      state: API_BASE ? "external" : "browser",
+      message: API_BASE ? "Using configured backend." : "Running without the desktop backend bridge.",
+    },
+    packaged: false,
+    platform: navigator.platform,
+  };
+}
+
+export async function restartBackend() {
+  if (desktopBridge.restartBackend) return desktopBridge.restartBackend();
+  return fetchRuntimeInfo();
 }
 
 export async function fetchApprovals() {

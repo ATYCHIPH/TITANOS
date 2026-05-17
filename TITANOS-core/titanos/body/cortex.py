@@ -5,9 +5,6 @@ import urllib.request
 from typing import Any
 
 from dotenv import load_dotenv
-from pydantic_ai import Agent, ModelRetry
-from pydantic_ai.models.ollama import OllamaModel
-from pydantic_ai.providers.ollama import OllamaProvider
 
 from ..config.settings import settings
 from ..contracts import BodyHealth, BodyResult, BodySystem, BodyTask, ChatMessage
@@ -32,7 +29,7 @@ class CortexAdapter:
 
     def __init__(self, model_name: str | None = None, tools: list[Any] | None = None) -> None:
         self.model_name = model_name or settings.TITANOS_MODEL
-        self._agent: Agent[Any, str] | None = None
+        self._agent: Any | None = None
         self._body_tools = tools or []
 
     def register_tools(self, tools: list[Any]) -> None:
@@ -55,6 +52,10 @@ class CortexAdapter:
         return None
 
     def _get_agent(self) -> Agent[Any, str]:
+        from pydantic_ai import Agent
+        from pydantic_ai.models.ollama import OllamaModel
+        from pydantic_ai.providers.ollama import OllamaProvider
+
         if self._agent is None:
             if self.model_name.startswith("ollama:"):
                 base_url = settings.OLLAMA_BASE_URL

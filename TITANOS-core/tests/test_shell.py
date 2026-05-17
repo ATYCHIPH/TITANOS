@@ -3,36 +3,42 @@ from unittest.mock import patch, MagicMock
 import subprocess
 import os
 import tempfile
+import titanos.platform.shell as shell_module
 from titanos.platform.shell import Shell
 
 class TestShell(unittest.TestCase):
-    @patch('titanos.platform.shell.platform.system')
-    @patch('titanos.platform.shell.Shell.has_command')
-    def test_get_default_shell_windows(self, mock_has_command, mock_system):
-        mock_system.return_value = "Windows"
-        
-        # Test pwsh preference
-        mock_has_command.side_effect = lambda cmd: cmd == "pwsh"
-        self.assertEqual(Shell.get_default_shell(), "pwsh")
+    def test_get_default_shell_windows(self):
+        original_system = shell_module.platform.system
+        original_has_command = Shell.has_command
+        try:
+            shell_module.platform.system = lambda: "Windows"
 
-        mock_has_command.side_effect = lambda cmd: cmd == "powershell"
-        self.assertEqual(Shell.get_default_shell(), "powershell")
+            Shell.has_command = staticmethod(lambda cmd: cmd == "pwsh")
+            self.assertEqual(Shell.get_default_shell(), "pwsh")
 
-        mock_has_command.side_effect = lambda cmd: False
-        self.assertEqual(Shell.get_default_shell(), "cmd")
+            Shell.has_command = staticmethod(lambda cmd: cmd == "powershell")
+            self.assertEqual(Shell.get_default_shell(), "powershell")
 
-    @patch('titanos.platform.shell.platform.system')
-    @patch('titanos.platform.shell.Shell.has_command')
-    def test_get_default_shell_unix(self, mock_has_command, mock_system):
-        mock_system.return_value = "Linux"
-        
-        # Test bash preference
-        mock_has_command.side_effect = lambda cmd: cmd == "bash"
-        self.assertEqual(Shell.get_default_shell(), "bash")
-        
-        # Test fallback
-        mock_has_command.side_effect = lambda cmd: False
-        self.assertEqual(Shell.get_default_shell(), "sh")
+            Shell.has_command = staticmethod(lambda cmd: False)
+            self.assertEqual(Shell.get_default_shell(), "cmd")
+        finally:
+            shell_module.platform.system = original_system
+            Shell.has_command = original_has_command
+
+    def test_get_default_shell_unix(self):
+        original_system = shell_module.platform.system
+        original_has_command = Shell.has_command
+        try:
+            shell_module.platform.system = lambda: "Linux"
+
+            Shell.has_command = staticmethod(lambda cmd: cmd == "bash")
+            self.assertEqual(Shell.get_default_shell(), "bash")
+
+            Shell.has_command = staticmethod(lambda cmd: False)
+            self.assertEqual(Shell.get_default_shell(), "sh")
+        finally:
+            shell_module.platform.system = original_system
+            Shell.has_command = original_has_command
 
     @patch('subprocess.run')
     @patch('titanos.platform.shell.Shell.get_default_shell')
@@ -84,10 +90,13 @@ class TestShell(unittest.TestCase):
             with open(sh_path, "w") as f:
                 f.write("echo 'Unix hook'")
                 
-            with patch('titanos.platform.shell.platform.system') as mock_system, patch('titanos.platform.shell.Shell.execute') as mock_execute:
+            original_system = shell_module.platform.system
+            original_execute = Shell.execute
+            mock_execute = MagicMock(return_value=MagicMock(returncode=0))
+            try:
                 # Test Windows
-                mock_system.return_value = "Windows"
-                mock_execute.return_value = MagicMock(returncode=0)
+                shell_module.platform.system = lambda: "Windows"
+                Shell.execute = mock_execute
                 
                 res = Shell.run_hook(hook_name, temp_dir)
                 mock_execute.assert_called_once()
@@ -96,10 +105,13 @@ class TestShell(unittest.TestCase):
                 mock_execute.reset_mock()
                 
                 # Test Unix
-                mock_system.return_value = "Linux"
+                shell_module.platform.system = lambda: "Linux"
                 res = Shell.run_hook(hook_name, temp_dir)
                 mock_execute.assert_called_once()
                 self.assertIn("bash", mock_execute.call_args[0][0])
+            finally:
+                shell_module.platform.system = original_system
+                Shell.execute = original_execute
 
 if __name__ == '__main__':
     unittest.main()

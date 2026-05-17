@@ -80,6 +80,10 @@ def inject_source_paths() -> None:
     if pydantic_ai_path.exists() and str(pydantic_ai_path) not in sys.path:
         sys.path.insert(0, str(pydantic_ai_path))
 
+    pydantic_graph_path = root.parent / "source-cortex" / "pydantic_graph"
+    if pydantic_graph_path.exists() and str(pydantic_graph_path) not in sys.path:
+        sys.path.insert(0, str(pydantic_graph_path))
+
     # Open Interpreter
     hands_path = root.parent / "source-hands"
     if hands_path.exists() and str(hands_path) not in sys.path:

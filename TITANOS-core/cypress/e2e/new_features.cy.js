@@ -2,13 +2,9 @@ describe("TITANOS production flows", () => {
   beforeEach(() => {
     cy.clearLocalStorage();
     cy.visit("http://localhost:8017/ui/index.html");
-    cy.get("#auth-email").type("owner@titanos.local");
-    cy.get("#auth-password").type("password123");
-    cy.contains("button", "Log in").click();
-    cy.contains("button", "Continue").click();
-    cy.contains("button", "Continue").click();
-    cy.contains("button", "Continue").click();
-    cy.contains("button", "Enter workspace").click();
+    cy.contains("button", "Next").click();
+    cy.contains("button", "Next").click();
+    cy.contains("button", "Complete Setup").click();
   });
 
   it("switches workspace and technical level", () => {

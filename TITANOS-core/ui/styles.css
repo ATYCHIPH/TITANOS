@@ -437,6 +437,46 @@ select {
   color: var(--muted);
 }
 
+.runtime-strip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px 14px;
+  background: var(--surface);
+}
+
+.runtime-strip strong,
+.runtime-strip p {
+  margin: 0;
+}
+
+.runtime-strip.ready {
+  border-color: color-mix(in srgb, var(--accent) 40%, var(--line));
+}
+
+.runtime-strip.attention {
+  border-color: color-mix(in srgb, var(--warn) 60%, var(--line));
+}
+
+.runtime-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.runtime-actions span {
+  max-width: 320px;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .product-grid {
   display: grid;
   grid-template-columns: minmax(360px, 1.25fr) minmax(280px, 0.75fr);

@@ -1,13 +1,13 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { 
   Briefcase, Code, PenTool, Search, 
-  Clock, Database, Users, Settings, 
+  Clock, Database, Users, 
   CheckCircle, ChevronRight, ChevronLeft,
-  Terminal, Monitor, Zap, Layout
+  Zap, Layout
 } from 'lucide-react';
 import { providerService } from '../../services/providerService';
 
-const Onboarding = ({ user, onComplete }) => {
+const Onboarding = ({ onComplete }) => {
   const [step, setStep] = useState(1);
   const [selections, setSelections] = useState({
     useCase: 'universal',

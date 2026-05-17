@@ -47,6 +47,35 @@ class BrainLifecycleTests(unittest.TestCase):
         self.assertEqual(route.system, BodySystem.MEMORY)
         self.assertGreater(route.confidence, 0.8)
 
+    def test_conversation_routes_to_voice_not_cortex_fallback(self) -> None:
+        brain = create_titanos()
+
+        result = brain.run("hello")
+
+        self.assertEqual(result.system, BodySystem.VOICE)
+        self.assertEqual(result.status, "success")
+        self.assertIn("connected", result.summary.lower())
+
+    def test_session_history_keeps_conversations_distinct(self) -> None:
+        brain = create_titanos()
+
+        first = brain.run("hello")
+        session_id = brain.session.session_id
+        brain.run("this is my first conversation marker", session_id=session_id)
+        brain.run("hello", session_id=session_id)
+        recalled = brain.run("what did I say before?", session_id=session_id)
+
+        self.assertEqual(first.system, BodySystem.VOICE)
+        self.assertIn("first conversation marker", recalled.summary)
+
+    def test_voice_handles_lightweight_identity_questions(self) -> None:
+        brain = create_titanos()
+
+        result = brain.run("who areyou")
+
+        self.assertEqual(result.system, BodySystem.VOICE)
+        self.assertIn("TITANOS", result.summary)
+
 
 if __name__ == "__main__":
     unittest.main()

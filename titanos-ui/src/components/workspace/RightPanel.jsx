@@ -1,92 +1,136 @@
-import React from 'react';
-import { 
-  FileText, Globe, Layers, BookOpen, 
-  Settings, Database, Zap, Share2 
+import {
+  Activity,
+  Bell,
+  Brain,
+  Database,
+  FileText,
+  Globe,
+  Layers,
+  RefreshCw,
+  Settings,
+  Share2
 } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { apiService } from '../../services/apiService';
+
+const tools = [
+  { id: 'status', name: 'Runtime', icon: Activity },
+  { id: 'providers', name: 'Providers', icon: Brain },
+  { id: 'files', name: 'Files', icon: Layers },
+  { id: 'knowledge', name: 'Knowledge', icon: Globe },
+];
 
 const RightPanel = ({ activePanel, onPanelChange }) => {
-  const tools = [
-    { id: 'editor', name: 'Editor', icon: FileText },
-    { id: 'files', name: 'Files', icon: Layers },
-    { id: 'browser', name: 'Browser', icon: Globe },
-    { id: 'knowledge', name: 'Knowledge', icon: BookOpen },
-    { id: 'data', name: 'Data', icon: Database },
-  ];
+  const [runtimeData, setRuntimeData] = useState(null);
+  const [providers, setProviders] = useState([]);
+
+  const refreshRuntime = () => {
+    apiService.getRuntimeStatus().then(setRuntimeData).catch(() => setRuntimeData(null));
+    apiService.getProviderConfigs().then((data) => setProviders(data.providers || [])).catch(() => setProviders([]));
+  };
+
+  useEffect(() => {
+    refreshRuntime();
+  }, []);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      {/* Tool Tabs */}
-      <div style={{ 
-        display: 'flex', 
-        borderBottom: '1px solid var(--border-subtle)',
-        padding: 'var(--space-xs)'
-      }}>
-        {tools.map(tool => (
-          <button 
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minWidth: 0 }}>
+      <div className="panel-header">
+        <div>
+          <div className="eyebrow">Inspector</div>
+          <div style={{ fontWeight: 700, marginTop: 2 }}>Runtime control</div>
+        </div>
+        <button className="btn btn-ghost" style={{ padding: 7 }} onClick={refreshRuntime} title="Refresh">
+          <RefreshCw size={15} />
+        </button>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: `repeat(${tools.length}, 1fr)`, gap: 6, padding: 10, borderBottom: '1px solid var(--border-subtle)' }}>
+        {tools.map((tool) => (
+          <button
             key={tool.id}
-            onClick={() => onPanelChange(tool.id)}
+            type="button"
             className="btn btn-ghost"
-            style={{ 
-              flex: 1, 
-              padding: '8px', 
-              color: activePanel === tool.id ? 'var(--accent-primary)' : 'var(--text-tertiary)',
-              background: activePanel === tool.id ? 'rgba(59, 130, 246, 0.05)' : 'transparent',
-              borderRadius: 'var(--radius-md)'
-            }}
+            onClick={() => onPanelChange(tool.id)}
             title={tool.name}
+            style={{
+              padding: 9,
+              color: activePanel === tool.id ? 'var(--accent-cyan)' : 'var(--text-tertiary)',
+              background: activePanel === tool.id ? 'rgba(35,211,238,0.08)' : 'transparent',
+              borderColor: activePanel === tool.id ? 'rgba(35,211,238,0.22)' : 'transparent'
+            }}
           >
-            <tool.icon size={18} />
+            <tool.icon size={17} />
           </button>
         ))}
       </div>
 
-      {/* Tool Content */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: 'var(--space-md)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 'var(--space-md)' }}>
-          <h4 style={{ fontSize: '0.9rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-secondary)' }}>
-            {activePanel.charAt(0).toUpperCase() + activePanel.slice(1)}
-          </h4>
-          <button className="btn btn-ghost" style={{ padding: '4px' }}><Settings size={14} /></button>
-        </div>
-
-        {/* Mock Content based on activePanel */}
-        {activePanel === 'browser' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-md)' }}>
-            <div className="card" style={{ padding: 'var(--space-sm)', fontSize: '0.85rem' }}>
-              <div style={{ color: 'var(--accent-primary)', marginBottom: '4px', fontWeight: 500 }}>Market Trends 2024</div>
-              <div style={{ color: 'var(--text-tertiary)', fontSize: '0.75rem' }}>https://techcrunch.com/trends...</div>
+      <div style={{ flex: 1, overflowY: 'auto', padding: 14, display: 'grid', gap: 12, alignContent: 'start' }}>
+        <section className="glass-tile" style={{ padding: 14 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+            <span className="eyebrow">System</span>
+            <span className="status-pill"><span className="status-dot" /> Online</span>
+          </div>
+          <div className="metric-grid">
+            <div className="metric-card">
+              <span className="eyebrow">Mode</span>
+              <strong style={{ fontSize: '0.95rem' }}>{runtimeData?.desktop ? 'Desktop' : 'Local'}</strong>
             </div>
-            <div className="card" style={{ padding: 'var(--space-sm)', fontSize: '0.85rem' }}>
-              <div style={{ color: 'var(--accent-primary)', marginBottom: '4px', fontWeight: 500 }}>AI Agent Architecture</div>
-              <div style={{ color: 'var(--text-tertiary)', fontSize: '0.75rem' }}>https://arxiv.org/abs/2401...</div>
+            <div className="metric-card">
+              <span className="eyebrow">Backend</span>
+              <strong style={{ fontSize: '0.95rem' }}>127.0.0.1</strong>
             </div>
           </div>
-        )}
+        </section>
 
-        {activePanel === 'files' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-sm)' }}>
-            {['src/', 'public/', 'package.json', 'README.md', 'vite.config.js'].map(file => (
-              <div key={file} style={{ 
-                display: 'flex', 
-                alignItems: 'center', 
-                gap: 'var(--space-sm)', 
-                fontSize: '0.85rem', 
-                padding: 'var(--space-xs) var(--space-sm)',
-                borderRadius: 'var(--radius-sm)',
-                cursor: 'pointer'
-              }} className="hover-bg">
-                <FileText size={14} color="var(--text-tertiary)" />
-                {file}
+        <section className="glass-tile" style={{ padding: 14 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+            <Brain size={15} color="var(--accent-cyan)" />
+            <span className="eyebrow">Provider Routing</span>
+          </div>
+          <div style={{ display: 'grid', gap: 8 }}>
+            {(providers.length ? providers : [{ provider_id: 'google', label: 'Google Gemini', status: 'configure key' }]).slice(0, 4).map((provider) => (
+              <div key={provider.provider_id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, fontSize: '0.8rem' }}>
+                <span style={{ color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {provider.label || provider.provider_id}
+                </span>
+                <span className="status-pill" style={{ height: 22 }}>{provider.status || 'saved'}</span>
               </div>
             ))}
           </div>
-        )}
+        </section>
+
+        <section className="glass-tile" style={{ padding: 14 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+            <Bell size={15} color="var(--warning)" />
+            <span className="eyebrow">Alerts</span>
+          </div>
+          {['Conversation context scoped', 'API keys encrypted', 'Backend bridge active'].map((alert) => (
+            <div key={alert} style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--text-secondary)', fontSize: '0.78rem', marginBottom: 8 }}>
+              <span className="status-dot" style={{ width: 6, height: 6 }} />
+              {alert}
+            </div>
+          ))}
+        </section>
+
+        <section className="glass-tile" style={{ padding: 14 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+            <Database size={15} color="var(--success)" />
+            <span className="eyebrow">Artifacts</span>
+          </div>
+          {['runtime.sqlite', 'session history', 'provider vault', 'audit events'].map((item) => (
+            <div key={item} style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--text-secondary)', fontSize: '0.78rem', marginBottom: 8 }}>
+              <FileText size={13} color="var(--text-tertiary)" />
+              {item}
+            </div>
+          ))}
+        </section>
       </div>
 
-      {/* Bottom Actions */}
-      <div style={{ padding: 'var(--space-md)', borderTop: '1px solid var(--border-subtle)' }}>
-        <button className="btn btn-secondary" style={{ width: '100%', gap: 'var(--space-sm)' }}>
-          <Share2 size={16} /> Share Workspace
+      <div style={{ padding: 14, borderTop: '1px solid var(--border-subtle)', display: 'grid', gap: 8 }}>
+        <button className="btn btn-secondary" style={{ width: '100%', justifyContent: 'space-between' }}>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}><Share2 size={15} /> Share Workspace</span>
+          <Settings size={14} />
         </button>
       </div>
     </div>

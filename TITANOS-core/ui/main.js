@@ -3,7 +3,6 @@ import {
   completeAgentRun,
   createInitialState,
   maskSecret,
-  mockAuthLogin,
   nowTime,
   providers,
   resetProductState,
@@ -19,7 +18,9 @@ import {
   fetchDoctor,
   fetchMemory,
   fetchProviderHealth,
+  fetchRuntimeInfo,
   fetchRuns,
+  restartBackend,
   sendMessage,
 } from "./api.js";
 
@@ -29,6 +30,9 @@ const app = document.querySelector("#app");
 document.addEventListener("DOMContentLoaded", () => {
   render();
   hydrateBackendSignals();
+  window.titanosDesktop?.onBackendStatus?.((info) => {
+    updateRuntimeInfo(info);
+  });
 });
 
 function setState(updater) {
@@ -39,119 +43,11 @@ function setState(updater) {
 
 function render() {
   document.documentElement.dataset.theme = state.preferences.theme;
-  if (!state.auth.session) {
-    renderAuth();
-    return;
-  }
   if (!state.onboarding.complete) {
     renderOnboarding();
     return;
   }
   renderWorkspace();
-}
-
-function renderAuth() {
-  app.innerHTML = `
-    <main class="auth-layout">
-      <section class="auth-brand" aria-label="TITANOS overview">
-        <div class="logo-lockup large">
-          <span class="logo-mark" aria-hidden="true">T</span>
-          <div>
-            <b>TITANOS</b>
-            <small>Universal Agent Workspace</small>
-          </div>
-        </div>
-        <h1>TITANOS /one</h1>
-        <p>One universal agent for coding, business, content, research, daily workflow, data, sales, and support.</p>
-        <div class="auth-proof">
-          <span>Protected routes</span>
-          <span>Mock-local auth adapter</span>
-          <span>Provider setup in UI</span>
-        </div>
-      </section>
-      <section class="auth-card" aria-label="Authentication">
-        <div class="auth-tabs" role="tablist">
-          <button class="auth-tab active" data-auth-view="login" type="button">Login</button>
-          <button class="auth-tab" data-auth-view="signup" type="button">Signup</button>
-          <button class="auth-tab" data-auth-view="recover" type="button">Recover</button>
-        </div>
-        <div id="auth-panel"></div>
-      </section>
-    </main>
-  `;
-  bindAuthTabs();
-  renderAuthPanel("login");
-}
-
-function bindAuthTabs() {
-  document.querySelectorAll("[data-auth-view]").forEach((button) => {
-    button.addEventListener("click", () => {
-      document.querySelectorAll("[data-auth-view]").forEach((tab) => tab.classList.remove("active"));
-      button.classList.add("active");
-      renderAuthPanel(button.dataset.authView);
-    });
-  });
-}
-
-function renderAuthPanel(view) {
-  const panel = document.querySelector("#auth-panel");
-  const copy = {
-    login: ["Welcome back", "Continue to your workspace", "Log in"],
-    signup: ["Create account", "Start with the Universal Workspace", "Create account"],
-    recover: ["Reset access", "Request a password reset link", "Send reset link"],
-  }[view];
-  panel.innerHTML = `
-    <form class="form-stack" id="auth-form" novalidate>
-      <div>
-        <h2>${copy[0]}</h2>
-        <p>${copy[1]}</p>
-      </div>
-      <label>Email
-        <input id="auth-email" type="text" inputmode="email" required autocomplete="email" placeholder="you@company.com" />
-      </label>
-      ${view !== "recover" ? `
-        <label>Password
-          <input id="auth-password" type="password" required autocomplete="${view === "login" ? "current-password" : "new-password"}" placeholder="Minimum 8 characters" />
-        </label>
-      ` : ""}
-      <p class="form-error" id="auth-error" role="alert"></p>
-      <button class="primary-action" type="submit">${copy[2]}</button>
-      <button class="ghost-action" id="verify-demo" type="button">Simulate email verification</button>
-    </form>
-  `;
-  document.querySelector("#auth-form").addEventListener("submit", (event) => {
-    event.preventDefault();
-    const email = document.querySelector("#auth-email").value;
-    const password = document.querySelector("#auth-password")?.value || "recovery-only";
-    const error = document.querySelector("#auth-error");
-    try {
-      if (view === "recover") {
-        setState((draft) => {
-          draft.auth.resetRequested = true;
-          draft.activity.unshift({ type: "security", text: `Password reset requested for ${email}`, time: nowTime() });
-          return draft;
-        });
-        return;
-      }
-      if (password.length < 8) throw new Error("Password must be at least 8 characters.");
-      const session = mockAuthLogin(email);
-      setState((draft) => {
-        draft.auth.session = session;
-        draft.auth.verified = view === "login";
-        draft.activity.unshift({ type: "security", text: `${view === "login" ? "Logged in" : "Signed up"} as ${session.email}`, time: nowTime() });
-        return draft;
-      });
-    } catch (err) {
-      error.textContent = err.message;
-    }
-  });
-  document.querySelector("#verify-demo").addEventListener("click", () => {
-    setState((draft) => {
-      draft.auth.verified = true;
-      draft.activity.unshift({ type: "security", text: "Email verification completed", time: nowTime() });
-      return draft;
-    });
-  });
 }
 
 function renderOnboarding() {
@@ -162,9 +58,8 @@ function renderOnboarding() {
       <header class="onboarding-header">
         <div class="logo-lockup">
           <span class="logo-mark" aria-hidden="true">T</span>
-          <div><b>TITANOS</b><small>Setup</small></div>
+          <div><b>TITANOS</b><small>Open Source Setup</small></div>
         </div>
-        <button class="ghost-action" id="logout-button" type="button">Logout</button>
       </header>
       <section class="onboarding-card">
         <div class="stepper" aria-label="Onboarding progress">
@@ -179,7 +74,6 @@ function renderOnboarding() {
     </main>
   `;
   steps[step]();
-  document.querySelector("#logout-button").addEventListener("click", logout);
   document.querySelector("#back-step").addEventListener("click", () => setState((draft) => {
     draft.onboarding.step = Math.max(0, draft.onboarding.step - 1);
     return draft;
@@ -289,7 +183,6 @@ function renderWorkspace() {
         <button class="nav-item ${state.preferences.currentRoute === "billing" ? "active" : ""}" data-route="billing" type="button">Usage</button>
         <div class="sidebar-footer">
           <button class="icon-button" id="theme-toggle" type="button" aria-label="Toggle theme">◐</button>
-          <button class="ghost-action" id="logout-button" type="button">Logout</button>
         </div>
       </aside>
       <main class="workspace-main">
@@ -312,6 +205,7 @@ function renderWorkspace() {
             <button class="ghost-action" id="open-command-palette" type="button">Command palette</button>
           </div>
         </header>
+        ${renderRuntimeBanner()}
         <section id="route-panel"></section>
       </main>
     </div>
@@ -321,7 +215,6 @@ function renderWorkspace() {
 }
 
 function bindWorkspaceShell() {
-  document.querySelector("#logout-button").addEventListener("click", logout);
   document.querySelector("#theme-toggle").addEventListener("click", () => setState((draft) => {
     draft.preferences.theme = draft.preferences.theme === "dark" ? "light" : "dark";
     return draft;
@@ -347,6 +240,28 @@ function bindWorkspaceShell() {
     });
   });
   document.querySelector("#open-command-palette").addEventListener("click", openCommandPalette);
+  document.querySelector("#restart-backend")?.addEventListener("click", async () => {
+    await updateRuntimeInfo(await restartBackend());
+    hydrateBackendSignals();
+  });
+}
+
+function renderRuntimeBanner() {
+  const runtime = state.runtime || {};
+  const ready = ["ready", "external", "browser"].includes(runtime.backendState);
+  return `
+    <section class="runtime-strip ${ready ? "ready" : "attention"}" aria-label="Desktop runtime">
+      <div>
+        <span class="eyebrow">Runtime</span>
+        <strong>${labelize(runtime.backendState || "checking")}</strong>
+        <p>${escapeHtml(runtime.backendMessage || "Checking local runtime.")}</p>
+      </div>
+      <div class="runtime-actions">
+        ${runtime.logDir ? `<span>${escapeHtml(runtime.logDir)}</span>` : ""}
+        <button class="ghost-action" id="restart-backend" type="button">Restart backend</button>
+      </div>
+    </section>
+  `;
 }
 
 function renderRoute(route) {
@@ -515,7 +430,10 @@ function bindCommandCenter() {
 async function executeRun(run, prompt) {
   let backendMessage = "";
   try {
-    const response = await sendMessage(prompt, localStorage.getItem("titanos_session_id"));
+    const response = await Promise.race([
+      sendMessage(prompt, localStorage.getItem("titanos_session_id")),
+      new Promise((resolve) => setTimeout(() => resolve({ response: "" }), 1000)),
+    ]);
     if (response?.session_id) localStorage.setItem("titanos_session_id", response.session_id);
     backendMessage = response?.response || "";
   } catch {
@@ -671,8 +589,8 @@ function renderSettings() {
     <div class="settings-grid">
       <article>
         <h3>Account</h3>
-        <p>${state.auth.session.email}</p>
-        <p>Email ${state.auth.verified ? "verified" : "not verified"}.</p>
+        <p>Open source local workspace.</p>
+        <p>No product login is required. Backend permissions still protect sensitive actions.</p>
       </article>
       <article>
         <h3>Appearance and Layout</h3>
@@ -726,6 +644,7 @@ function openCommandPalette() {
 
 async function hydrateBackendSignals() {
   try {
+    await updateRuntimeInfo(await fetchRuntimeInfo());
     const [health, body, doctor, memory, runs, approvals] = await Promise.allSettled([
       fetchProviderHealth(),
       fetchBodyHealth(),
@@ -752,10 +671,18 @@ async function hydrateBackendSignals() {
   }
 }
 
-function logout() {
-  localStorage.removeItem("titanos_token");
+async function updateRuntimeInfo(info) {
+  if (!info) return;
   setState((draft) => {
-    draft.auth.session = null;
+    draft.runtime = {
+      backendState: info.backend?.state || "unknown",
+      backendMessage: info.backend?.message || "",
+      apiBase: info.apiBase || "",
+      logDir: info.logDir || "",
+      dataDir: info.dataDir || "",
+      packaged: Boolean(info.packaged),
+      platform: info.platform || "",
+    };
     return draft;
   });
 }

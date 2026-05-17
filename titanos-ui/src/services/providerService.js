@@ -1,10 +1,12 @@
 /**
  * TITANOS Provider Service
  * Handles provider-specific logic and connection testing.
+ * [MOCK ONLY] - Replace with backend adapter where easy, or use local state.
  */
 
 class ProviderService {
   async testConnection(providerId, apiKey, config = {}) {
+    void config;
     return new Promise((resolve, reject) => {
       console.log(`Testing connection for ${providerId}...`);
       setTimeout(() => {

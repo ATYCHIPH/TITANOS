@@ -6,7 +6,7 @@ This audit tracks the production UI lane for the 100-task Antigravity checklist.
 
 ## Implemented In This Lane
 
-- Protected local/mock authentication flow: login, signup state, recover/reset request state, logout, session persistence, and auth-gated workspace access.
+- Open-source plug-and-play startup: no product login, no signup, no logout, and no auth-gated workspace shell.
 - First-run onboarding: primary use case, technical level, visible tools, optional provider setup, persisted onboarding completion.
 - Universal Workspace as the default product surface.
 - Specialized workspace modes: Universal, Coding, Business, Content, Research, Daily Workflow, Data, Sales/Support, and Custom.
@@ -25,7 +25,9 @@ This audit tracks the production UI lane for the 100-task Antigravity checklist.
 - Agent request classification for coding, business, content, research, daily workflow, data, sales/support, and general requests.
 - Visible plan, selected tools, execution steps, result, suggested next actions, and activity timeline.
 - Approval gate for sensitive actions including sending email, deleting files, running commands, purchases, publishing, provider key changes, deploys, invites, and private data export.
-- Settings routes for account/workspace layout, API keys, permissions, and usage/billing placeholder.
+- Settings routes for local workspace layout, API keys, permissions, and usage/billing placeholder.
+- Desktop runtime status strip with backend state, log path, and restart action.
+- React UI in `../titanos-ui` is now the canonical desktop surface when staged into `desktop-ui/`; `TITANOS-core/ui` is fallback-only during the transition.
 - TITANOS logo mark, wordmark, favicon, dark/light themes, responsive product shell, focus states, labels, and empty/loading/error surfaces.
 - Cypress specs updated to target the production workspace flows instead of the retired console-only assumptions.
 
@@ -40,9 +42,9 @@ This audit tracks the production UI lane for the 100-task Antigravity checklist.
 - `npm.cmd run dist:dir`
 - Bundled backend executable staged at `desktop-runtime/backend/titanos-backend.exe`
 - Packaged desktop app launched from `release/win-unpacked/TITANOS.exe`
-- Packaged app started the bundled backend internally and returned `HTTP 200` from `http://127.0.0.1:18789/status`
-- Browser smoke test on `http://localhost:8017/ui/index.html`:
-  - login routes to onboarding
+- Packaged app started the bundled backend internally and returned `HTTP 200` from the internal loopback status endpoint.
+- Browser smoke test on the desktop UI:
+  - app opens directly to onboarding
   - onboarding routes to Universal Workspace
   - missing provider banner appears
   - research request classifies as Research
@@ -57,7 +59,6 @@ This audit tracks the production UI lane for the 100-task Antigravity checklist.
 
 ## Antigravity Follow-Up Checks
 
-- Replace local/mock auth adapter with production auth provider or backend service.
 - Replace local/mock secure provider storage with encrypted server-side secret storage.
 - Wire provider connection tests to real provider endpoints.
 - Connect the local/mock agent runtime to the production TITANOS agent backend.

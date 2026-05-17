@@ -15,6 +15,7 @@ from ..platform.shell import Shell
 from ..sources import project_root
 from ..utils.logging import get_logger
 from .base import info
+from .. import store as _store
 
 
 logger = get_logger(__name__)
@@ -22,11 +23,28 @@ logger = get_logger(__name__)
 
 @dataclass
 class ApprovalRecord:
+    """Lightweight view object kept for API/test compatibility."""
     id: str
     command: str
     risk: str
     reason: str
     approved: bool = False
+    status: str = "pending"
+    expires_at: str | None = None
+    execution_count: int = 0
+
+    @classmethod
+    def from_row(cls, row: dict) -> "ApprovalRecord":
+        return cls(
+            id=row["id"],
+            command=row["command"],
+            risk=row["risk"],
+            reason=row["reason"],
+            approved=row["status"] in {"approved", "executed"},
+            status=row["status"],
+            expires_at=row.get("expires_at"),
+            execution_count=row.get("execution_count", 0),
+        )
 
 
 class HandsAdapter:
@@ -51,7 +69,9 @@ class HandsAdapter:
             for word in settings.COMMAND_ALLOWLIST.split(",")
             if word.strip()
         )
-        self.approvals: dict[str, ApprovalRecord] = {}
+        # In-memory cache kept for same-process lookup speed.
+        # The canonical store is the SQLite DB via titanos.store.
+        self._approval_cache: dict[str, ApprovalRecord] = {}
         try:
             from interpreter import interpreter
             self.interpreter = interpreter
@@ -75,7 +95,7 @@ class HandsAdapter:
             details={
                 "interpreter_available": self.interpreter is not None,
                 "command_timeout_seconds": self.command_timeout_seconds,
-                "pending_approvals": len(self.approvals),
+                "pending_approvals": len(_store.approval_list(status="pending")),
             },
         )
 
@@ -233,6 +253,10 @@ class HandsAdapter:
 
     def _run_command(self, command: str) -> BodyResult:
         risk, reason = self.classify_command(command)
+        _store.audit_log(
+            "command_classified",
+            meta={"command": command, "risk": risk, "reason": reason},
+        )
         if risk in {"review", "blocked"}:
             record = self._create_approval(command, risk, reason)
             return BodyResult(
@@ -251,8 +275,15 @@ class HandsAdapter:
 
         return self._execute_command(command)
 
-    def _execute_command(self, command: str) -> BodyResult:
+    def _execute_command(
+        self, command: str, *, approval_id: str | None = None
+    ) -> BodyResult:
         logger.info("Executing command", extra={"extra": {"command": command}})
+        _store.audit_log(
+            "approved_command_executed",
+            approval_id=approval_id,
+            meta={"command": command},
+        )
         completed = Shell.execute(
             command,
             cwd=str(project_root()),
@@ -268,10 +299,13 @@ class HandsAdapter:
             output = f"Command exited with code {completed.returncode}."
 
         status = "success" if completed.returncode == 0 else "failed"
+        summary = self._summarize_output(output)
+        if approval_id:
+            _store.approval_set_executed(approval_id, result_summary=summary)
         return BodyResult(
             system=BodySystem.HANDS,
             status=status,
-            summary=self._summarize_output(output),
+            summary=summary,
             raw={"returncode": completed.returncode, "command": command},
         )
 
@@ -297,14 +331,24 @@ class HandsAdapter:
         return "safe", "safe command"
 
     def approve_command(self, approval_id: str) -> BodyResult:
-        record = self.approvals.get(approval_id)
-        if record is None:
+        row = _store.approval_get(approval_id)
+        if row is None:
             return BodyResult(
                 system=BodySystem.HANDS,
                 status="failed",
                 summary=f"Approval id not found: {approval_id}",
             )
-        record.approved = True
+        if row["status"] not in {"pending", "approved"}:
+            return BodyResult(
+                system=BodySystem.HANDS,
+                status="failed",
+                summary=f"Approval cannot be approved from status {row['status']}: {approval_id}",
+            )
+        _store.approval_approve(approval_id)
+        _store.audit_log("approval_approved", approval_id=approval_id)
+        row = _store.approval_get(approval_id)
+        record = ApprovalRecord.from_row(row)  # type: ignore[arg-type]
+        self._approval_cache[approval_id] = record
         return BodyResult(
             system=BodySystem.HANDS,
             status="success",
@@ -312,32 +356,86 @@ class HandsAdapter:
             raw=record,
         )
 
-    def run_approved_command(self, approval_id: str) -> BodyResult:
-        record = self.approvals.get(approval_id)
-        if record is None:
+    def reject_command(self, approval_id: str) -> BodyResult:
+        row = _store.approval_get(approval_id)
+        if row is None:
             return BodyResult(
                 system=BodySystem.HANDS,
                 status="failed",
                 summary=f"Approval id not found: {approval_id}",
             )
-        if not record.approved:
+        if row["status"] not in {"pending", "approved"}:
+            return BodyResult(
+                system=BodySystem.HANDS,
+                status="failed",
+                summary=f"Approval cannot be rejected from status {row['status']}: {approval_id}",
+            )
+        row = _store.approval_reject(approval_id)
+        _store.audit_log("approval_rejected", approval_id=approval_id)
+        record = ApprovalRecord.from_row(row)  # type: ignore[arg-type]
+        return BodyResult(
+            system=BodySystem.HANDS,
+            status="success",
+            summary=f"Rejected command {approval_id}: {record.command}",
+            raw=record,
+        )
+
+    def run_approved_command(self, approval_id: str) -> BodyResult:
+        row = _store.approval_get(approval_id)
+        if row is None:
+            return BodyResult(
+                system=BodySystem.HANDS,
+                status="failed",
+                summary=f"Approval id not found: {approval_id}",
+            )
+        record = ApprovalRecord.from_row(row)
+        if record.status == "pending":
             return BodyResult(
                 system=BodySystem.HANDS,
                 status="needs_input",
                 summary=f"Command approval is still pending: {approval_id}",
                 next_steps=[f"Run 'approve command {approval_id}' first."],
             )
-        return self._execute_command(record.command)
+        if record.status in {"rejected", "expired", "executed"}:
+            _store.audit_log(
+                "approval_execution_blocked",
+                approval_id=approval_id,
+                meta={"status": record.status},
+            )
+            return BodyResult(
+                system=BodySystem.HANDS,
+                status="failed",
+                summary=f"Approval cannot be executed from status {record.status}: {approval_id}",
+            )
+        if record.execution_count > 0:
+            _store.audit_log("duplicate_approval_execution_blocked", approval_id=approval_id)
+            return BodyResult(
+                system=BodySystem.HANDS,
+                status="failed",
+                summary=f"Approved command is single-use and was already attempted: {approval_id}",
+            )
+        return self._execute_command(record.command, approval_id=approval_id)
 
     def _create_approval(self, command: str, risk: str, reason: str) -> ApprovalRecord:
-        record = ApprovalRecord(
-            id=uuid.uuid4().hex[:12],
-            command=command,
-            risk=risk,
-            reason=reason,
+        row = _store.approval_create(command=command, risk=risk, reason=reason)
+        record = ApprovalRecord.from_row(row)
+        self._approval_cache[record.id] = record
+        _store.audit_log(
+            "approval_created",
+            approval_id=record.id,
+            meta={"command": command, "risk": risk, "reason": reason},
         )
-        self.approvals[record.id] = record
         return record
+
+    @property
+    def approvals(self) -> dict[str, ApprovalRecord]:
+        """Backward-compat view: returns all non-rejected DB approvals keyed by id."""
+        rows = _store.approval_list()
+        return {
+            r["id"]: ApprovalRecord.from_row(r)
+            for r in rows
+            if r["status"] != "rejected"
+        }
 
     def _extract_command(self, goal: str) -> str | None:
         lowered = goal.lower()
@@ -437,6 +535,10 @@ class HandsAdapter:
         label = path.relative_to(root).as_posix()
         diff = self._diff_text(before, content, label)
         if preview:
+            _store.audit_log(
+                "file_write_previewed",
+                meta={"path": str(path.relative_to(root))},
+            )
             return BodyResult(
                 system=BodySystem.HANDS,
                 status="needs_input",
@@ -450,6 +552,13 @@ class HandsAdapter:
         artifacts = [str(path)]
         if backup:
             artifacts.append(str(backup))
+        _store.audit_log(
+            "file_written",
+            meta={
+                "path": str(path.relative_to(root)),
+                "backup": str(backup.relative_to(root)) if backup else None,
+            },
+        )
         return BodyResult(
             system=BodySystem.HANDS,
             status="success",
@@ -504,6 +613,13 @@ class HandsAdapter:
 
         backup = self._backup_file(path)
         path.write_text(after, encoding="utf-8")
+        _store.audit_log(
+            "file_edited",
+            meta={
+                "path": str(path.relative_to(root)),
+                "backup": str(backup.relative_to(root)),
+            },
+        )
         return BodyResult(
             system=BodySystem.HANDS,
             status="success",
@@ -526,7 +642,62 @@ class HandsAdapter:
         backup = root / ".titanos" / "backups" / f"{stamp}" / relative
         backup.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(path, backup)
+        _store.audit_log(
+            "backup_created",
+            meta={"source": str(relative), "backup": str(backup.relative_to(root))},
+        )
         return backup
+
+    def restore_backup(self, backup_id: str) -> BodyResult:
+        root = project_root()
+        backup_root = root / ".titanos" / "backups"
+        try:
+            snapshot, relative = backup_id.split("::", 1)
+        except ValueError:
+            return BodyResult(
+                system=BodySystem.HANDS,
+                status="failed",
+                summary="Backup id must use '<snapshot>::<relative path>'.",
+            )
+        try:
+            backup_path = (backup_root / snapshot / relative).resolve()
+            target_path = self._project_path(root, relative)
+        except ValueError as exc:
+            return BodyResult(system=BodySystem.HANDS, status="failed", summary=str(exc))
+        if backup_root not in backup_path.parents or not backup_path.is_file():
+            return BodyResult(
+                system=BodySystem.HANDS,
+                status="failed",
+                summary=f"Backup not found: {backup_id}",
+            )
+        if not self._is_writable_project_path(target_path):
+            return BodyResult(
+                system=BodySystem.HANDS,
+                status="failed",
+                summary=f"Refusing to restore into protected path: {relative}",
+            )
+        safety_backup = self._backup_file(target_path) if target_path.exists() else None
+        target_path.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(backup_path, target_path)
+        _store.audit_log(
+            "backup_restored",
+            meta={
+                "backup_id": backup_id,
+                "target": str(target_path.relative_to(root)),
+                "safety_backup": str(safety_backup.relative_to(root)) if safety_backup else None,
+            },
+        )
+        return BodyResult(
+            system=BodySystem.HANDS,
+            status="success",
+            summary=f"Restored backup to {target_path.relative_to(root)}",
+            artifacts=[str(target_path), str(backup_path)],
+            raw={
+                "backup_id": backup_id,
+                "restored_path": str(target_path),
+                "safety_backup": str(safety_backup) if safety_backup else None,
+            },
+        )
 
     def _diff_text(self, before: str, after: str, label: str) -> str:
         return "".join(

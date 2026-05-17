@@ -30,7 +30,7 @@ class HandsSafetyTests(unittest.TestCase):
         )
 
     def test_review_command_creates_approval_and_replays_after_approval(self) -> None:
-        result = self.adapter.run(BodyTask(goal="run command: pip install example-package"))
+        result = self.adapter.run(BodyTask(goal="run command: git commit --dry-run"))
 
         self.assertEqual(result.status, "needs_input")
         self.assertEqual(result.raw.risk, "review")
@@ -41,6 +41,18 @@ class HandsSafetyTests(unittest.TestCase):
 
         approved = self.adapter.run(BodyTask(goal=f"approve command {approval_id}"))
         self.assertEqual(approved.status, "success")
+
+    def test_approved_command_is_single_use(self) -> None:
+        result = self.adapter.run(BodyTask(goal="run command: pip install example-package"))
+        approval_id = result.raw.id
+        self.adapter.run(BodyTask(goal=f"approve command {approval_id}"))
+
+        first = self.adapter.run(BodyTask(goal=f"run approved command {approval_id}"))
+        second = self.adapter.run(BodyTask(goal=f"run approved command {approval_id}"))
+
+        self.assertIn(first.status, {"success", "failed"})
+        self.assertEqual(second.status, "failed")
+        self.assertIn("executed", second.summary)
 
     def test_preview_write_file_returns_diff_without_writing(self) -> None:
         result = self.adapter.run(
