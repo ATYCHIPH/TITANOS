@@ -201,22 +201,64 @@ const UniversalWorkspace = ({ currentTask, progress, status }) => (
 );
 
 const CodingWorkspace = ({ currentTask, progress, status }) => (
-  <section style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.25fr) minmax(240px, 0.75fr)', gap: 14, minHeight: 0 }}>
-    <div className="glass-tile" style={{ display: 'grid', gridTemplateRows: '44px 1fr', overflow: 'hidden' }}>
+  <section style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.35fr) minmax(240px, 0.65fr)', gap: 14, minHeight: 0 }}>
+    <div className="glass-tile" style={{ display: 'grid', gridTemplateRows: '44px 1fr', overflow: 'hidden', minWidth: 0 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '0 14px', borderBottom: '1px solid var(--border-subtle)' }}>
         <FileCode size={16} color="var(--accent-cyan)" />
         <span className="eyebrow">Editor + Diff</span>
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: '220px 1fr', minHeight: 0 }}>
-        <div style={{ borderRight: '1px solid var(--border-subtle)', padding: 12, display: 'grid', gap: 8, alignContent: 'start' }}>
-          {codeRows.map(([file, state]) => (
-            <div key={file} style={{ display: 'flex', justifyContent: 'space-between', gap: 8, fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{file}</span>
-              <span style={{ color: state === 'passed' ? 'var(--success)' : 'var(--warning)' }}>{state}</span>
-            </div>
-          ))}
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(180px, 0.46fr) minmax(0, 1fr)', minHeight: 0, minWidth: 0 }}>
+        <div style={{ borderRight: '1px solid var(--border-subtle)', padding: 12, display: 'grid', gap: 10, alignContent: 'start', minWidth: 0, background: 'rgba(255,255,255,0.018)' }}>
+          {codeRows.map(([file, state, detail]) => {
+            const name = file.split('/').pop();
+            const folder = file.replace(`/${name}`, '');
+
+            return (
+              <div key={file} style={{
+                display: 'grid',
+                gap: 6,
+                padding: '9px 10px',
+                border: '1px solid var(--border-subtle)',
+                borderRadius: 'var(--radius-md)',
+                background: 'rgba(9,13,20,0.54)',
+                minWidth: 0
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, minWidth: 0 }}>
+                  <strong style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: '0.78rem' }}>{name}</strong>
+                  <span style={{
+                    flex: '0 0 auto',
+                    padding: '2px 7px',
+                    borderRadius: 999,
+                    border: `1px solid ${state === 'passed' ? 'rgba(16,185,129,0.36)' : 'rgba(245,158,11,0.36)'}`,
+                    color: state === 'passed' ? 'var(--success)' : 'var(--warning)',
+                    fontSize: '0.68rem',
+                    lineHeight: 1.35
+                  }}>{state}</span>
+                </div>
+                <div style={{ color: 'var(--text-tertiary)', fontSize: '0.68rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{folder}</div>
+                <div style={{ color: 'var(--text-secondary)', fontSize: '0.72rem' }}>{detail}</div>
+              </div>
+            );
+          })}
         </div>
-        <pre style={{ margin: 0, padding: 16, overflow: 'auto', color: '#d8e3ff', fontSize: '0.82rem', lineHeight: 1.55 }}>{`const routeIntent = (message) => {
+        <div style={{ minWidth: 0, display: 'grid', gridTemplateRows: 'auto 1fr', background: 'linear-gradient(180deg, rgba(2,6,12,0.72), rgba(2,6,12,0.42))' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '10px 14px', borderBottom: '1px solid var(--border-subtle)' }}>
+            <span style={{ color: 'var(--text-secondary)', fontSize: '0.78rem' }}>brain-routing.js</span>
+            <span className="status-pill" style={{ height: 22, fontSize: '0.68rem', color: 'var(--success)' }}>
+              <CheckCircle2 size={12} /> scoped
+            </span>
+          </div>
+          <pre style={{
+            margin: 0,
+            padding: 16,
+            overflow: 'auto',
+            minWidth: 0,
+            color: '#d8e3ff',
+            fontSize: '0.8rem',
+            lineHeight: 1.55,
+            whiteSpace: 'pre-wrap',
+            wordBreak: 'break-word'
+          }}>{`const routeIntent = (message) => {
   if (isConversation(message)) return "voice";
   if (isMemoryCommand(message)) return "memory";
   return "cortex";
@@ -227,6 +269,7 @@ await titanos.chat({
   workspace: "coding",
   context: recentTurns
 });`}</pre>
+        </div>
       </div>
     </div>
     <TaskCard currentTask={currentTask} progress={progress} status={status} />
